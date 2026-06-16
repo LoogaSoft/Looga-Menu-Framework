@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -10,11 +10,16 @@ namespace LoogaSoft.Menu.Editor
     {
         public override void OnInspectorGUI()
         {
+            serializedObject.Update();
+
             LoogaMenuScreenDefinition screen = (LoogaMenuScreenDefinition)target;
             LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
                 "A screen composes reusable panels and evaluates rule assets before it opens.");
 
-            DrawDefaultInspector();
+            LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
+            DrawPropertiesExcluding(serializedObject, "m_Script", "_useCustomDisplayName", "_displayName");
+            serializedObject.ApplyModifiedProperties();
+
             DrawValidation(screen);
         }
 
@@ -65,3 +70,4 @@ namespace LoogaSoft.Menu.Editor
         }
     }
 }
+

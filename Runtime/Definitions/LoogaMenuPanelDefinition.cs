@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LoogaSoft.Menu
 {
@@ -6,6 +6,7 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuPanelDefinition : ScriptableObject
     {
         [Header("Identity")]
+        [SerializeField] private bool _useCustomDisplayName;
         [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
@@ -16,12 +17,23 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _skipOpenSound;
         [SerializeField] private bool _skipCloseSound;
 
-        public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? name : _displayName;
+        public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
+            ? _displayName
+            : name;
         public string Description => _description;
         public LoogaMenuVisibilityMode VisibilityMode => _visibilityMode;
         public bool HideWhenCovered => _hideWhenCovered;
         public bool SkipTransitions => _skipTransitions;
         public bool SkipOpenSound => _skipOpenSound;
         public bool SkipCloseSound => _skipCloseSound;
+
+        private void OnValidate()
+        {
+            if (!_useCustomDisplayName)
+            {
+                _displayName = name;
+            }
+        }
     }
 }
+

@@ -1,17 +1,17 @@
-﻿using LoogaSoft.Menu;
+using LoogaSoft.Menu;
 using UnityEditor;
 
 namespace LoogaSoft.Menu.Editor
 {
-    [CustomEditor(typeof(LoogaMenuPanelDefinition))]
-    public sealed class LoogaMenuPanelDefinitionEditor : UnityEditor.Editor
+    [CustomEditor(typeof(LoogaMenuPanelMode), true)]
+    public sealed class LoogaMenuPanelModeEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
 
-            LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Panel",
-                "A panel is one reusable UI piece, such as Stockpile, Loadout, Action Bar, or a shared background.");
+            LoogaMenuEditorUtility.DrawDefinitionHeader("Panel Mode",
+                "A panel mode adjusts how a reusable menu panel behaves inside a specific screen.");
 
             LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
             DrawPropertiesExcluding(serializedObject, "m_Script", "_useCustomDisplayName", "_displayName");
@@ -19,4 +19,3 @@ namespace LoogaSoft.Menu.Editor
         }
     }
 }
-

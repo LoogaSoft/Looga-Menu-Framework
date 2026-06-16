@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -77,7 +77,6 @@ namespace LoogaSoft.Menu
             _openScreens.Add(screen);
             ShowScreen(screen);
             RefreshCoveredViews();
-            _audioHandler?.PlayOpen(screen);
             StateChanged?.Invoke(CreateState());
             return true;
         }
@@ -90,9 +89,7 @@ namespace LoogaSoft.Menu
             LoogaMenuScreenDefinition screen = _openScreens[^1];
             _openScreens.RemoveAt(_openScreens.Count - 1);
             HideScreen(screen);
-            RefreshVisiblePanels();
             RefreshCoveredViews();
-            _audioHandler?.PlayClose(screen);
             StateChanged?.Invoke(CreateState());
             return true;
         }
@@ -108,11 +105,9 @@ namespace LoogaSoft.Menu
             {
                 LoogaMenuScreenDefinition screen = _openScreens[i];
                 HideScreen(screen);
-                _audioHandler?.PlayClose(screen);
             }
 
             _openScreens.Clear();
-            RefreshVisiblePanels();
 
             if (notify)
             {
@@ -139,21 +134,34 @@ namespace LoogaSoft.Menu
             }
 
             TryShowPanel(screen.ActionBarPanel, null, false);
-            _transitionHandler?.PlayOpen(screen, _visiblePanels.ToArray());
+            LoogaMenuPanel[] panels = _visiblePanels.ToArray();
+            _transitionHandler?.PlayOpen(screen, panels);
+            _audioHandler?.PlayOpen(screen, panels);
         }
 
         private void HideScreen(LoogaMenuScreenDefinition screen)
         {
             LoogaMenuPanel[] screenPanels = ResolveScreenPanels(screen);
-            _transitionHandler?.PlayClose(screen, screenPanels);
+            _audioHandler?.PlayClose(screen, screenPanels);
 
-            foreach (LoogaMenuPanel panel in screenPanels)
+            void HideUnusedPanels()
             {
-                if (!IsPanelUsedByOpenScreen(panel.Panel))
+                foreach (LoogaMenuPanel panel in screenPanels)
                 {
-                    panel.Hide();
+                    if (!IsPanelUsedByOpenScreen(panel.Panel))
+                    {
+                        panel.Hide();
+                    }
                 }
             }
+
+            if (_transitionHandler != null)
+            {
+                _transitionHandler.PlayClose(screen, screenPanels, HideUnusedPanels);
+                return;
+            }
+
+            HideUnusedPanels();
         }
 
         private bool TryShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode, bool required)
@@ -251,3 +259,4 @@ namespace LoogaSoft.Menu
         }
     }
 }
+

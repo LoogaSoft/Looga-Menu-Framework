@@ -1,18 +1,18 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 namespace LoogaSoft.Menu
 {
     [DisallowMultipleComponent]
+    [RequireComponent(typeof(CanvasGroup))]
     [AddComponentMenu("LoogaSoft/Menu/Menu Panel")]
     public sealed class LoogaMenuPanel : MonoBehaviour
     {
         [Header("Definition")]
         [SerializeField] private LoogaMenuPanelDefinition _panel;
 
-        [Header("Scene References")]
-        [SerializeField] private Canvas _canvas;
-        [SerializeField] private CanvasGroup _canvasGroup;
+        private Canvas _canvas;
+        private CanvasGroup _canvasGroup;
 
         public LoogaMenuPanelDefinition Panel => _panel;
         public Canvas Canvas
@@ -31,6 +31,7 @@ namespace LoogaSoft.Menu
                 return _canvasGroup;
             }
         }
+        public RectTransform RectTransform => transform as RectTransform;
 
         private LoogaMenuPanelMode _activeMode;
 
@@ -153,3 +154,4 @@ namespace LoogaSoft.Menu
         }
     }
 }
+

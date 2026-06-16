@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -7,6 +7,7 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuScreenDefinition : ScriptableObject
     {
         [Header("Identity")]
+        [SerializeField] private bool _useCustomDisplayName;
         [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
@@ -23,7 +24,9 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _closeAsGroupOnBack = true;
         [SerializeField] private bool _closeExistingScreens = true;
 
-        public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? name : _displayName;
+        public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
+            ? _displayName
+            : name;
         public string Description => _description;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
         public LoogaMenuPanelDefinition BackgroundPanel => _backgroundPanel;
@@ -32,5 +35,14 @@ namespace LoogaSoft.Menu
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
         public bool CloseAsGroupOnBack => _closeAsGroupOnBack;
         public bool CloseExistingScreens => _closeExistingScreens;
+
+        private void OnValidate()
+        {
+            if (!_useCustomDisplayName)
+            {
+                _displayName = name;
+            }
+        }
     }
 }
+

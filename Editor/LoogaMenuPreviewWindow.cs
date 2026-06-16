@@ -26,17 +26,26 @@ namespace LoogaSoft.Menu.Editor
 
         private void OnGUI()
         {
+            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
+                GUILayout.FlexibleSpace();
+
+                using (new EditorGUI.DisabledScope(panels.Length == 0))
+                {
+                    if (GUILayout.Button("Reset", EditorStyles.toolbarButton, GUILayout.Width(64f)))
+                    {
+                        ResetPreview(panels);
+                    }
+                }
+
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(72f)))
                 {
                     RefreshScreens();
                 }
-
-                GUILayout.FlexibleSpace();
             }
 
-            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             if (panels.Length == 0)
             {
                 EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuPanel objects to preview menu screens.",
@@ -99,6 +108,15 @@ namespace LoogaSoft.Menu.Editor
             }
 
             ShowPanel(screen.ActionBarPanel, null);
+        }
+
+        private static void ResetPreview(LoogaMenuPanel[] panels)
+        {
+            foreach (LoogaMenuPanel panel in panels)
+            {
+                panel.Hide();
+                EditorUtility.SetDirty(panel);
+            }
         }
 
         private static void ShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode)
