@@ -56,10 +56,10 @@ namespace LoogaSoft.Menu.Editor
                 EditorGUILayout.HelpBox($"{label} panel '{panel.name}' is referenced more than once.", MessageType.Warning);
             }
 
-            if (!LoogaMenuEditorUtility.TryFindView(panel, out _))
+            if (!LoogaMenuEditorUtility.TryFindPanel(panel, out _))
             {
                 hasIssue = true;
-                EditorGUILayout.HelpBox($"{label} panel '{panel.name}' has no matching LoogaMenuView in the open scene.",
+                EditorGUILayout.HelpBox($"{label} panel '{panel.name}' has no matching LoogaMenuPanel in the open scene.",
                     MessageType.Info);
             }
         }

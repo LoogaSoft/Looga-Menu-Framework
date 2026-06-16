@@ -3,13 +3,13 @@ using UnityEditor;
 
 namespace LoogaSoft.Menu.Editor
 {
-    [CustomEditor(typeof(LoogaMenuPanelDefinition))]
-    public sealed class LoogaMenuPanelDefinitionEditor : UnityEditor.Editor
+    [CustomEditor(typeof(LoogaMenuPanel))]
+    public sealed class LoogaMenuPanelEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
             LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Panel",
-                "A panel is one reusable UI piece, such as Stockpile, Loadout, Action Bar, or a shared background.");
+                "Assign the panel definition this scene object represents. Screens enable this panel through that asset reference.");
 
             DrawDefaultInspector();
         }

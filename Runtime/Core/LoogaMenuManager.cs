@@ -6,9 +6,9 @@ namespace LoogaSoft.Menu
 {
     public sealed class LoogaMenuManager
     {
-        private readonly Dictionary<LoogaMenuPanelDefinition, LoogaMenuView> _views = new();
+        private readonly Dictionary<LoogaMenuPanelDefinition, LoogaMenuPanel> _panels = new();
         private readonly List<LoogaMenuScreenDefinition> _openScreens = new();
-        private readonly List<LoogaMenuView> _visibleViews = new();
+        private readonly List<LoogaMenuPanel> _visiblePanels = new();
         private readonly LoogaStateRegistry _stateRegistry;
 
         private ILoogaMenuTransitionHandler _transitionHandler;
@@ -36,23 +36,23 @@ namespace LoogaSoft.Menu
             _audioHandler = audioHandler;
         }
 
-        public void RegisterView(LoogaMenuView view)
+        public void RegisterPanel(LoogaMenuPanel panel)
         {
-            if (view == null || view.Panel == null)
+            if (panel == null || panel.Panel == null)
                 return;
 
-            _views[view.Panel] = view;
-            view.Hide();
+            _panels[panel.Panel] = panel;
+            panel.Hide();
         }
 
-        public void UnregisterView(LoogaMenuView view)
+        public void UnregisterPanel(LoogaMenuPanel panel)
         {
-            if (view == null || view.Panel == null)
+            if (panel == null || panel.Panel == null)
                 return;
 
-            if (_views.TryGetValue(view.Panel, out LoogaMenuView current) && current == view)
+            if (_panels.TryGetValue(panel.Panel, out LoogaMenuPanel current) && current == panel)
             {
-                _views.Remove(view.Panel);
+                _panels.Remove(panel.Panel);
             }
         }
 
@@ -90,7 +90,7 @@ namespace LoogaSoft.Menu
             LoogaMenuScreenDefinition screen = _openScreens[^1];
             _openScreens.RemoveAt(_openScreens.Count - 1);
             HideScreen(screen);
-            RefreshVisibleViews();
+            RefreshVisiblePanels();
             RefreshCoveredViews();
             _audioHandler?.PlayClose(screen);
             StateChanged?.Invoke(CreateState());
@@ -112,7 +112,7 @@ namespace LoogaSoft.Menu
             }
 
             _openScreens.Clear();
-            RefreshVisibleViews();
+            RefreshVisiblePanels();
 
             if (notify)
             {
@@ -122,7 +122,7 @@ namespace LoogaSoft.Menu
 
         private void ShowScreen(LoogaMenuScreenDefinition screen)
         {
-            _visibleViews.Clear();
+            _visiblePanels.Clear();
 
             TryShowPanel(screen.BackgroundPanel, null, false);
 
@@ -139,85 +139,89 @@ namespace LoogaSoft.Menu
             }
 
             TryShowPanel(screen.ActionBarPanel, null, false);
-            _transitionHandler?.PlayOpen(screen, _visibleViews.ToArray());
+            _transitionHandler?.PlayOpen(screen, _visiblePanels.ToArray());
         }
 
         private void HideScreen(LoogaMenuScreenDefinition screen)
         {
-            LoogaMenuView[] screenViews = ResolveScreenViews(screen);
-            _transitionHandler?.PlayClose(screen, screenViews);
+            LoogaMenuPanel[] screenPanels = ResolveScreenPanels(screen);
+            _transitionHandler?.PlayClose(screen, screenPanels);
 
-            foreach (LoogaMenuView view in screenViews)
+            foreach (LoogaMenuPanel panel in screenPanels)
             {
-                if (!IsPanelUsedByOpenScreen(view.Panel))
+                if (!IsPanelUsedByOpenScreen(panel.Panel))
                 {
-                    view.Hide();
+                    panel.Hide();
                 }
             }
         }
 
-        private bool TryShowPanel(LoogaMenuPanelDefinition panel, LoogaMenuPanelMode panelMode, bool required)
+        private bool TryShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode, bool required)
         {
-            if (panel == null)
+            if (definition == null)
                 return !required;
 
-            if (!_views.TryGetValue(panel, out LoogaMenuView view) || view == null)
+            if (!_panels.TryGetValue(definition, out LoogaMenuPanel panelComponent) || panelComponent == null)
                 return false;
 
-            view.Show(panelMode);
-            _visibleViews.Add(view);
+            panelComponent.Show(panelMode);
+            _visiblePanels.Add(panelComponent);
             return true;
         }
 
-        private void RefreshVisibleViews()
+        private void RefreshVisiblePanels()
         {
-            foreach (LoogaMenuView view in _views.Values)
+            foreach (LoogaMenuPanel panel in _panels.Values)
             {
-                if (view != null && !IsPanelUsedByOpenScreen(view.Panel))
+                if (panel != null && !IsPanelUsedByOpenScreen(panel.Panel))
                 {
-                    view.Hide();
+                    panel.Hide();
                 }
             }
         }
 
         private void RefreshCoveredViews()
         {
-            HashSet<LoogaMenuView> topViews = new(ResolveScreenViews(_openScreens.Count > 0 ? _openScreens[^1] : null));
+            HashSet<LoogaMenuPanel> topPanels =
+                new(ResolveScreenPanels(_openScreens.Count > 0 ? _openScreens[^1] : null));
 
-            foreach (LoogaMenuView view in _views.Values)
+            foreach (LoogaMenuPanel panel in _panels.Values)
             {
-                if (view == null)
+                if (panel == null)
                     continue;
 
-                view.SetCovered(_openScreens.Count > 0 && !topViews.Contains(view));
+                panel.SetCovered(_openScreens.Count > 0 && !topPanels.Contains(panel));
             }
         }
 
-        private LoogaMenuView[] ResolveScreenViews(LoogaMenuScreenDefinition screen)
+        private LoogaMenuPanel[] ResolveScreenPanels(LoogaMenuScreenDefinition screen)
         {
             if (screen == null)
-                return Array.Empty<LoogaMenuView>();
+                return Array.Empty<LoogaMenuPanel>();
 
-            List<LoogaMenuView> views = new();
-            AddPanelView(screen.BackgroundPanel, views);
+            List<LoogaMenuPanel> panels = new();
+            AddPanel(screen.BackgroundPanel, panels);
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
             {
                 if (entry != null)
                 {
-                    AddPanelView(entry.Panel, views);
+                    AddPanel(entry.Panel, panels);
                 }
             }
 
-            AddPanelView(screen.ActionBarPanel, views);
-            return views.ToArray();
+            AddPanel(screen.ActionBarPanel, panels);
+            return panels.ToArray();
         }
 
-        private void AddPanelView(LoogaMenuPanelDefinition panel, List<LoogaMenuView> views)
+        private void AddPanel(LoogaMenuPanelDefinition definition, List<LoogaMenuPanel> panels)
         {
-            if (panel != null && _views.TryGetValue(panel, out LoogaMenuView view) && view != null && !views.Contains(view))
+            if (definition != null
+                && _panels.TryGetValue(definition, out LoogaMenuPanel panelComponent)
+                && panelComponent != null
+                && !panels.Contains(panelComponent))
             {
-                views.Add(view);
+                panels.Add(panelComponent);
             }
         }
 

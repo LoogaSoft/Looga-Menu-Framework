@@ -4,8 +4,8 @@ using UnityEngine.UI;
 namespace LoogaSoft.Menu
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("LoogaSoft/Menu/Menu View")]
-    public sealed class LoogaMenuView : MonoBehaviour
+    [AddComponentMenu("LoogaSoft/Menu/Menu Panel")]
+    public sealed class LoogaMenuPanel : MonoBehaviour
     {
         [Header("Definition")]
         [SerializeField] private LoogaMenuPanelDefinition _panel;

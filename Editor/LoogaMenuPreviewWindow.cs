@@ -36,10 +36,10 @@ namespace LoogaSoft.Menu.Editor
                 GUILayout.FlexibleSpace();
             }
 
-            LoogaMenuView[] views = LoogaMenuEditorUtility.FindSceneViews();
-            if (views.Length == 0)
+            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+            if (panels.Length == 0)
             {
-                EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuView objects to preview menu screens.",
+                EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuPanel objects to preview menu screens.",
                     MessageType.Warning);
             }
 
@@ -51,7 +51,7 @@ namespace LoogaSoft.Menu.Editor
                 {
                     EditorGUILayout.LabelField(screen.DisplayName, EditorStyles.boldLabel);
 
-                    using (new EditorGUI.DisabledScope(views.Length == 0))
+                    using (new EditorGUI.DisabledScope(panels.Length == 0))
                     {
                         if (GUILayout.Button("Preview"))
                         {
@@ -81,11 +81,11 @@ namespace LoogaSoft.Menu.Editor
 
         private static void Preview(LoogaMenuScreenDefinition screen)
         {
-            LoogaMenuView[] views = LoogaMenuEditorUtility.FindSceneViews();
-            foreach (LoogaMenuView view in views)
+            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+            foreach (LoogaMenuPanel panel in panels)
             {
-                view.Hide();
-                EditorUtility.SetDirty(view);
+                panel.Hide();
+                EditorUtility.SetDirty(panel);
             }
 
             ShowPanel(screen.BackgroundPanel, null);
@@ -101,13 +101,14 @@ namespace LoogaSoft.Menu.Editor
             ShowPanel(screen.ActionBarPanel, null);
         }
 
-        private static void ShowPanel(LoogaMenuPanelDefinition panel, LoogaMenuPanelMode panelMode)
+        private static void ShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode)
         {
-            if (panel == null || !LoogaMenuEditorUtility.TryFindView(panel, out LoogaMenuView view))
+            if (definition == null
+                || !LoogaMenuEditorUtility.TryFindPanel(definition, out LoogaMenuPanel panelComponent))
                 return;
 
-            view.Show(panelMode);
-            EditorUtility.SetDirty(view);
+            panelComponent.Show(panelMode);
+            EditorUtility.SetDirty(panelComponent);
         }
     }
 }

@@ -8,7 +8,7 @@ namespace LoogaSoft.Menu
     {
         [Header("Registration")]
         [SerializeField] private bool _registerChildrenOnAwake = true;
-        [SerializeField] private LoogaMenuView[] _sceneViews = System.Array.Empty<LoogaMenuView>();
+        [SerializeField] private LoogaMenuPanel[] _scenePanels = System.Array.Empty<LoogaMenuPanel>();
 
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
@@ -30,7 +30,7 @@ namespace LoogaSoft.Menu
 
             RegisterStateProviders();
             ResolveHandlers();
-            RegisterViews();
+            RegisterPanels();
         }
 
         private void OnDestroy()
@@ -63,9 +63,9 @@ namespace LoogaSoft.Menu
             _menuManager?.CloseAll();
         }
 
-        public void RegisterView(LoogaMenuView view)
+        public void RegisterPanel(LoogaMenuPanel panel)
         {
-            _menuManager?.RegisterView(view);
+            _menuManager?.RegisterPanel(panel);
         }
 
         public void RegisterState<TState>(TState state) where TState : class
@@ -78,19 +78,19 @@ namespace LoogaSoft.Menu
             _stateRegistry.Unregister(state);
         }
 
-        private void RegisterViews()
+        private void RegisterPanels()
         {
-            foreach (LoogaMenuView view in _sceneViews)
+            foreach (LoogaMenuPanel panel in _scenePanels)
             {
-                RegisterView(view);
+                RegisterPanel(panel);
             }
 
             if (!_registerChildrenOnAwake)
                 return;
 
-            foreach (LoogaMenuView view in GetComponentsInChildren<LoogaMenuView>(true))
+            foreach (LoogaMenuPanel panel in GetComponentsInChildren<LoogaMenuPanel>(true))
             {
-                RegisterView(view);
+                RegisterPanel(panel);
             }
         }
 

@@ -18,32 +18,32 @@ namespace LoogaSoft.Menu.Editor
             return null;
         }
 
-        public static LoogaMenuView[] FindSceneViews()
+        public static LoogaMenuPanel[] FindScenePanels()
         {
-            List<LoogaMenuView> views = new();
-            foreach (LoogaMenuView view in Resources.FindObjectsOfTypeAll<LoogaMenuView>())
+            List<LoogaMenuPanel> panels = new();
+            foreach (LoogaMenuPanel panel in Resources.FindObjectsOfTypeAll<LoogaMenuPanel>())
             {
-                if (view != null && view.gameObject.scene.IsValid())
+                if (panel != null && panel.gameObject.scene.IsValid())
                 {
-                    views.Add(view);
+                    panels.Add(panel);
                 }
             }
 
-            return views.ToArray();
+            return panels.ToArray();
         }
 
-        public static bool TryFindView(LoogaMenuPanelDefinition panel, out LoogaMenuView view)
+        public static bool TryFindPanel(LoogaMenuPanelDefinition definition, out LoogaMenuPanel panel)
         {
-            foreach (LoogaMenuView candidate in FindSceneViews())
+            foreach (LoogaMenuPanel candidate in FindScenePanels())
             {
-                if (candidate.Panel == panel)
+                if (candidate.Panel == definition)
                 {
-                    view = candidate;
+                    panel = candidate;
                     return true;
                 }
             }
 
-            view = null;
+            panel = null;
             return false;
         }
 
