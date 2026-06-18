@@ -30,9 +30,9 @@ namespace LoogaSoft.Menu.Editor
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"), new GUIContent("Open Requirements"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"),
                 new GUIContent("Missing Panel Behavior"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeExistingScreens"));
             serializedObject.ApplyModifiedProperties();
@@ -176,10 +176,11 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.PropertyField(backBehaviorRect, backBehavior, new GUIContent("Back Behavior"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect rulesRect = new(position.x, y, position.width, lineHeight);
+            float rulesHeight = EditorGUI.GetPropertyHeight(rules, true);
+            Rect rulesRect = new(position.x, y, position.width, rulesHeight);
             EditorGUI.PropertyField(rulesRect, rules, new GUIContent("Open Requirements"));
 
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            y += rulesHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
             EditorGUI.PropertyField(parametersRect, parameters);
 
@@ -190,9 +191,11 @@ namespace LoogaSoft.Menu.Editor
         {
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
+            SerializedProperty rules = property.FindPropertyRelative("_rules");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return lineHeight * 4f
+            return lineHeight * 3f
                 + spacing * 4f
+                + EditorGUI.GetPropertyHeight(rules, true)
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }
     }

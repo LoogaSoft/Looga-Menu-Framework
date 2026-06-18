@@ -1,5 +1,6 @@
 using System;
 using LoogaSoft.Blackboard;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -22,6 +23,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuScreenDefinition _screen;
         [SerializeField] private LoogaMenuOpenMode _openMode = LoogaMenuOpenMode.Overlay;
         [SerializeField] private LoogaMenuContentBackBehavior _backBehavior = LoogaMenuContentBackBehavior.ReturnToParent;
+        [ExposeScriptable]
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 

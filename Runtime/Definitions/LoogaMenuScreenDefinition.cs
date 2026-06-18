@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -27,9 +28,11 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuPanelDefinition _actionBarPanel;
 
         [Header("Behavior")]
+        [ExposeScriptable]
         [SerializeField] private LoogaMenuRuleSet _rules;
-        [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
+        [ExposeScriptable]
         [SerializeField] private LoogaMenuInputPolicy _inputPolicy;
+        [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
         [SerializeField] private bool _closeAsGroupOnBack = true;
         [SerializeField] private bool _closeExistingScreens = true;
 
