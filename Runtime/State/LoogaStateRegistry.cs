@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
+using LoogaSoft.Blackboard;
 
 namespace LoogaSoft.Menu
 {
     public sealed class LoogaStateRegistry : ILoogaStateRegistry
     {
         private readonly Dictionary<Type, object> _states = new();
-        private readonly Dictionary<LoogaBlackboardKey, LoogaBlackboardValue> _blackboard = new();
+        private readonly LoogaBlackboard _blackboard = new();
+
+        public LoogaStateRegistry()
+        {
+            LoogaBlackboardRuntimeRegistry.SetActive(_blackboard);
+        }
 
         public void Register<TState>(TState state) where TState : class
         {
@@ -42,10 +48,7 @@ namespace LoogaSoft.Menu
 
         public void SetValue(LoogaBlackboardKey key, LoogaBlackboardValue value)
         {
-            if (key == null || key.ValueType != value.type)
-                return;
-
-            _blackboard[key] = value;
+            _blackboard.SetValue(key, value);
         }
 
         public void SetBool(LoogaBlackboardKey key, bool value)
@@ -70,21 +73,12 @@ namespace LoogaSoft.Menu
 
         public bool TryGetValue(LoogaBlackboardKey key, out LoogaBlackboardValue value)
         {
-            if (key != null && _blackboard.TryGetValue(key, out value))
-            {
-                return true;
-            }
-
-            value = default;
-            return false;
+            return _blackboard.TryGetValue(key, out value);
         }
 
         public void RemoveValue(LoogaBlackboardKey key)
         {
-            if (key != null)
-            {
-                _blackboard.Remove(key);
-            }
+            _blackboard.RemoveValue(key);
         }
 
         public void Clear()

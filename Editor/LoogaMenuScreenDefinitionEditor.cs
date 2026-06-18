@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using LoogaSoft.Blackboard;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -17,10 +18,40 @@ namespace LoogaSoft.Menu.Editor
                 "A screen composes reusable panels and evaluates rule assets before it opens.");
 
             LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
-            DrawPropertiesExcluding(serializedObject, "m_Script", "_useCustomDisplayName", "_displayName");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Composition", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"));
+            DrawPanelReference(serializedObject.FindProperty("_backgroundPanelMode"),
+                serializedObject.FindProperty("_backgroundPanel"), "Background Panel");
+            DrawPanelReference(serializedObject.FindProperty("_actionBarPanelMode"),
+                serializedObject.FindProperty("_actionBarPanel"), "Action Bar Panel");
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Rules", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Behavior", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeExistingScreens"));
             serializedObject.ApplyModifiedProperties();
 
             DrawValidation(screen);
+        }
+
+        private static void DrawPanelReference(SerializedProperty mode, SerializedProperty panel, string label)
+        {
+            EditorGUILayout.PropertyField(mode, new GUIContent($"{label} Source"));
+
+            if ((LoogaMenuPanelReferenceMode)mode.enumValueIndex != LoogaMenuPanelReferenceMode.Override)
+                return;
+
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(panel, new GUIContent(label));
+            EditorGUI.indentLevel--;
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)
@@ -30,8 +61,11 @@ namespace LoogaSoft.Menu.Editor
 
             HashSet<LoogaMenuPanelDefinition> panels = new();
             bool hasIssue = false;
+            LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
+            LoogaMenuPanelDefinition defaultBackgroundPanel = root != null ? root.DefaultBackgroundPanel : null;
+            LoogaMenuPanelDefinition defaultActionBarPanel = root != null ? root.DefaultActionBarPanel : null;
 
-            ValidatePanel("Background", screen.BackgroundPanel, panels, ref hasIssue);
+            ValidatePanel("Background", screen.GetBackgroundPanel(defaultBackgroundPanel), panels, ref hasIssue);
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
             {
@@ -41,7 +75,7 @@ namespace LoogaSoft.Menu.Editor
                 ValidatePanel("Panel", entry.Panel, panels, ref hasIssue);
             }
 
-            ValidatePanel("Action Bar", screen.ActionBarPanel, panels, ref hasIssue);
+            ValidatePanel("Action Bar", screen.GetActionBarPanel(defaultActionBarPanel), panels, ref hasIssue);
 
             if (!hasIssue)
             {
@@ -69,5 +103,97 @@ namespace LoogaSoft.Menu.Editor
             }
         }
     }
-}
 
+    [CustomPropertyDrawer(typeof(LoogaMenuScreenPanelEntry))]
+    public sealed class LoogaMenuScreenPanelEntryDrawer : PropertyDrawer
+    {
+        private const float Gap = 4f;
+
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.BeginProperty(position, label, property);
+
+            SerializedProperty panel = property.FindPropertyRelative("_panel");
+            SerializedProperty openMode = property.FindPropertyRelative("_openMode");
+            SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
+            SerializedProperty parameters = property.FindPropertyRelative("_parameters");
+
+            Rect row = new(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
+            float openModeWidth = Mathf.Min(136f, row.width * 0.24f);
+            float missingWidth = Mathf.Min(112f, row.width * 0.2f);
+            float panelWidth = row.width - openModeWidth - missingWidth - Gap * 2f;
+
+            Rect panelRect = new(row.x, row.y, panelWidth, row.height);
+            Rect openModeRect = new(panelRect.xMax + Gap, row.y, openModeWidth, row.height);
+            Rect missingRect = new(openModeRect.xMax + Gap, row.y, missingWidth, row.height);
+
+            EditorGUI.PropertyField(panelRect, panel, GUIContent.none);
+            EditorGUI.PropertyField(openModeRect, openMode, GUIContent.none);
+            EditorGUI.PropertyField(missingRect, missingBehavior, GUIContent.none);
+
+            Rect parametersRect = new(position.x, row.yMax + EditorGUIUtility.standardVerticalSpacing,
+                position.width, EditorGUI.GetPropertyHeight(parameters, true));
+            EditorGUI.PropertyField(parametersRect, parameters);
+
+            EditorGUI.EndProperty();
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            SerializedProperty parameters = property.FindPropertyRelative("_parameters");
+            return EditorGUIUtility.singleLineHeight
+                + EditorGUIUtility.standardVerticalSpacing
+                + EditorGUI.GetPropertyHeight(parameters, true);
+        }
+    }
+
+    [CustomPropertyDrawer(typeof(LoogaMenuBlackboardParameter))]
+    public sealed class LoogaMenuBlackboardParameterDrawer : PropertyDrawer
+    {
+        private const float Gap = 4f;
+
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.BeginProperty(position, label, property);
+
+            SerializedProperty key = property.FindPropertyRelative("_key");
+            Rect row = new(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
+            float keyWidth = Mathf.Max(120f, row.width * 0.52f);
+            Rect keyRect = new(row.x, row.y, keyWidth, row.height);
+            Rect valueRect = new(keyRect.xMax + Gap, row.y, row.width - keyWidth - Gap, row.height);
+
+            EditorGUI.PropertyField(keyRect, key, GUIContent.none);
+            DrawValueField(valueRect, property, key.objectReferenceValue as LoogaBlackboardKey);
+
+            EditorGUI.EndProperty();
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            return EditorGUIUtility.singleLineHeight;
+        }
+
+        private static void DrawValueField(Rect rect, SerializedProperty property, LoogaBlackboardKey key)
+        {
+            if (key == null)
+            {
+                EditorGUI.LabelField(rect, "No Key");
+                return;
+            }
+
+            SerializedProperty value = key.ValueType switch
+            {
+                LoogaBlackboardValueType.Bool => property.FindPropertyRelative("_boolValue"),
+                LoogaBlackboardValueType.Int => property.FindPropertyRelative("_intValue"),
+                LoogaBlackboardValueType.Float => property.FindPropertyRelative("_floatValue"),
+                LoogaBlackboardValueType.String => property.FindPropertyRelative("_stringValue"),
+                _ => null
+            };
+
+            if (value != null)
+            {
+                EditorGUI.PropertyField(rect, value, GUIContent.none);
+            }
+        }
+    }
+}

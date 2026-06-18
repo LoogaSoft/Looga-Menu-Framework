@@ -1,3 +1,5 @@
+using LoogaSoft.Blackboard;
+
 namespace LoogaSoft.Menu
 {
     public interface ILoogaStateRegistry

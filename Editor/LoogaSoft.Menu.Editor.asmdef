@@ -2,6 +2,7 @@
     "name": "LoogaSoft.Menu.Editor",
     "rootNamespace": "LoogaSoft",
     "references": [
+        "LoogaSoft.Blackboard.Runtime",
         "LoogaSoft.Menu.Runtime"
     ],
     "includePlatforms": [

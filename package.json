@@ -7,6 +7,7 @@
     "name": "LoogaSoft"
   },
   "dependencies": {
+    "com.loogasoft.loogablackboard": "0.1.0",
     "com.unity.ugui": "1.0.0"
   }
 }

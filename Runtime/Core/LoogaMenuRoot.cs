@@ -10,6 +10,10 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _registerChildrenOnAwake = true;
         [SerializeField] private LoogaMenuPanel[] _scenePanels = System.Array.Empty<LoogaMenuPanel>();
 
+        [Header("Default Panels")]
+        [SerializeField] private LoogaMenuPanelDefinition _defaultBackgroundPanel;
+        [SerializeField] private LoogaMenuPanelDefinition _defaultActionBarPanel;
+
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
         [SerializeField] private CursorLockMode _closedLockMode = CursorLockMode.Locked;
@@ -21,11 +25,13 @@ namespace LoogaSoft.Menu
         public static LoogaMenuRoot Active { get; private set; }
         public LoogaMenuManager MenuManager => _menuManager;
         public LoogaStateRegistry StateRegistry => _stateRegistry;
+        public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
+        public LoogaMenuPanelDefinition DefaultActionBarPanel => _defaultActionBarPanel;
 
         private void Awake()
         {
             Active = this;
-            _menuManager = new LoogaMenuManager(_stateRegistry);
+            _menuManager = new LoogaMenuManager(_stateRegistry, _defaultBackgroundPanel, _defaultActionBarPanel);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();

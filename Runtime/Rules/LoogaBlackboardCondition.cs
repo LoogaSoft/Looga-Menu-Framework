@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Blackboard;
 using UnityEngine;
 
 namespace LoogaSoft.Menu

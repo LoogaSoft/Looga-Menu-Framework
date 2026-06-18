@@ -1,7 +1,9 @@
 {
     "name": "LoogaSoft.Menu.Runtime",
     "rootNamespace": "LoogaSoft",
-    "references": [],
+    "references": [
+        "LoogaSoft.Blackboard.Runtime"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -91,23 +91,43 @@ namespace LoogaSoft.Menu.Editor
         private static void Preview(LoogaMenuScreenDefinition screen)
         {
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+            LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
+            LoogaMenuPanelDefinition defaultBackgroundPanel = root != null ? root.DefaultBackgroundPanel : null;
+            LoogaMenuPanelDefinition defaultActionBarPanel = root != null ? root.DefaultActionBarPanel : null;
+            List<LoogaMenuPanel> replaceablePanels = new();
+
             foreach (LoogaMenuPanel panel in panels)
             {
                 panel.Hide();
                 EditorUtility.SetDirty(panel);
             }
 
-            ShowPanel(screen.BackgroundPanel, null);
+            ShowPanel(screen.GetBackgroundPanel(defaultBackgroundPanel));
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
             {
-                if (entry != null)
+                if (entry == null)
+                    continue;
+
+                if (entry.OpenMode == LoogaMenuOpenMode.Replace)
                 {
-                    ShowPanel(entry.Panel, entry.PanelMode);
+                    HidePreviewPanels(replaceablePanels);
+                    replaceablePanels.Clear();
+                }
+
+                if (entry.OpenMode == LoogaMenuOpenMode.AddOverlay)
+                {
+                    CoverPreviewPanels(replaceablePanels);
+                }
+
+                LoogaMenuPanel panel = ShowPanel(entry.Panel);
+                if (panel != null)
+                {
+                    replaceablePanels.Add(panel);
                 }
             }
 
-            ShowPanel(screen.ActionBarPanel, null);
+            ShowPanel(screen.GetActionBarPanel(defaultActionBarPanel));
         }
 
         private static void ResetPreview(LoogaMenuPanel[] panels)
@@ -119,14 +139,39 @@ namespace LoogaSoft.Menu.Editor
             }
         }
 
-        private static void ShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode)
+        private static LoogaMenuPanel ShowPanel(LoogaMenuPanelDefinition definition)
         {
             if (definition == null
                 || !LoogaMenuEditorUtility.TryFindPanel(definition, out LoogaMenuPanel panelComponent))
-                return;
+                return null;
 
-            panelComponent.Show(panelMode);
+            panelComponent.Show();
             EditorUtility.SetDirty(panelComponent);
+            return panelComponent;
+        }
+
+        private static void HidePreviewPanels(List<LoogaMenuPanel> panels)
+        {
+            foreach (LoogaMenuPanel panel in panels)
+            {
+                if (panel == null)
+                    continue;
+
+                panel.Hide();
+                EditorUtility.SetDirty(panel);
+            }
+        }
+
+        private static void CoverPreviewPanels(List<LoogaMenuPanel> panels)
+        {
+            foreach (LoogaMenuPanel panel in panels)
+            {
+                if (panel == null)
+                    continue;
+
+                panel.SetCovered(true);
+                EditorUtility.SetDirty(panel);
+            }
         }
     }
 }

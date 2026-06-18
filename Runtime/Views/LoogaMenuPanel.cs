@@ -33,8 +33,6 @@ namespace LoogaSoft.Menu
         }
         public RectTransform RectTransform => transform as RectTransform;
 
-        private LoogaMenuPanelMode _activeMode;
-
         private void Awake()
         {
             ResolveReferences(true);
@@ -45,7 +43,7 @@ namespace LoogaSoft.Menu
             ResolveReferences(false);
         }
 
-        public void Show(LoogaMenuPanelMode panelMode)
+        public void Show()
         {
             ResolveReferences(true);
 
@@ -65,8 +63,6 @@ namespace LoogaSoft.Menu
                 _canvasGroup.interactable = true;
                 _canvasGroup.blocksRaycasts = true;
             }
-
-            ApplyPanelMode(panelMode);
         }
 
         public void Hide()
@@ -107,22 +103,6 @@ namespace LoogaSoft.Menu
             _canvasGroup.interactable = !covered;
             _canvasGroup.blocksRaycasts = !covered;
             _canvasGroup.alpha = covered && hideWhenCovered ? 0f : 1f;
-        }
-
-        private void ApplyPanelMode(LoogaMenuPanelMode panelMode)
-        {
-            if (_activeMode == panelMode)
-                return;
-
-            _activeMode = panelMode;
-
-            foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (component is ILoogaMenuPanelModeReceiver receiver)
-                {
-                    receiver.ApplyPanelMode(panelMode);
-                }
-            }
         }
 
         private void ResolveReferences()

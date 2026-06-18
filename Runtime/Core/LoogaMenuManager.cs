@@ -10,13 +10,18 @@ namespace LoogaSoft.Menu
         private readonly List<LoogaMenuScreenDefinition> _openScreens = new();
         private readonly List<LoogaMenuPanel> _visiblePanels = new();
         private readonly LoogaStateRegistry _stateRegistry;
+        private readonly LoogaMenuPanelDefinition _defaultBackgroundPanel;
+        private readonly LoogaMenuPanelDefinition _defaultActionBarPanel;
 
         private ILoogaMenuTransitionHandler _transitionHandler;
         private ILoogaMenuAudioHandler _audioHandler;
 
-        public LoogaMenuManager(LoogaStateRegistry stateRegistry)
+        public LoogaMenuManager(LoogaStateRegistry stateRegistry, LoogaMenuPanelDefinition defaultBackgroundPanel = null,
+            LoogaMenuPanelDefinition defaultActionBarPanel = null)
         {
             _stateRegistry = stateRegistry;
+            _defaultBackgroundPanel = defaultBackgroundPanel;
+            _defaultActionBarPanel = defaultActionBarPanel;
         }
 
         public event Action<LoogaMenuState> StateChanged;
@@ -69,6 +74,9 @@ namespace LoogaSoft.Menu
                 return false;
             }
 
+            if (!CanOpenScreen(screen, requester))
+                return false;
+
             if (screen.CloseExistingScreens)
             {
                 CloseAll(false);
@@ -101,13 +109,13 @@ namespace LoogaSoft.Menu
 
         private void CloseAll(bool notify)
         {
-            for (int i = _openScreens.Count - 1; i >= 0; i--)
-            {
-                LoogaMenuScreenDefinition screen = _openScreens[i];
-                HideScreen(screen);
-            }
-
+            LoogaMenuScreenDefinition[] screens = _openScreens.ToArray();
             _openScreens.Clear();
+
+            for (int i = screens.Length - 1; i >= 0; i--)
+            {
+                HideScreen(screens[i]);
+            }
 
             if (notify)
             {
@@ -118,22 +126,31 @@ namespace LoogaSoft.Menu
         private void ShowScreen(LoogaMenuScreenDefinition screen)
         {
             _visiblePanels.Clear();
+            List<LoogaMenuPanel> replaceablePanels = new();
 
-            TryShowPanel(screen.BackgroundPanel, null, false);
+            TryShowPanel(screen.GetBackgroundPanel(_defaultBackgroundPanel), LoogaMenuMissingPanelBehavior.Ignore, screen);
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
             {
                 if (entry == null)
                     continue;
 
-                bool shown = TryShowPanel(entry.Panel, entry.PanelMode, entry.Required);
-                if (!shown && entry.Required)
+                if (entry.OpenMode == LoogaMenuOpenMode.Replace)
                 {
-                    Debug.LogWarning($"Menu screen '{screen.DisplayName}' could not find required panel '{entry.Panel}'.");
+                    HidePanels(replaceablePanels);
+                    replaceablePanels.Clear();
+                }
+
+                ApplyPanelParameters(entry);
+
+                LoogaMenuPanel panel = TryShowPanel(entry.Panel, entry.MissingPanelBehavior, screen);
+                if (panel != null)
+                {
+                    replaceablePanels.Add(panel);
                 }
             }
 
-            TryShowPanel(screen.ActionBarPanel, null, false);
+            TryShowPanel(screen.GetActionBarPanel(_defaultActionBarPanel), LoogaMenuMissingPanelBehavior.Ignore, screen);
             LoogaMenuPanel[] panels = _visiblePanels.ToArray();
             _transitionHandler?.PlayOpen(screen, panels);
             _audioHandler?.PlayOpen(screen, panels);
@@ -157,24 +174,38 @@ namespace LoogaSoft.Menu
 
             if (_transitionHandler != null)
             {
-                _transitionHandler.PlayClose(screen, screenPanels, HideUnusedPanels);
+                _transitionHandler.PlayClose(screen, screenPanels, () =>
+                {
+                    HideUnusedPanels();
+                    RemovePanelParameters(screen);
+                    ReapplyOpenScreenParameters();
+                });
                 return;
             }
 
             HideUnusedPanels();
+            RemovePanelParameters(screen);
+            ReapplyOpenScreenParameters();
         }
 
-        private bool TryShowPanel(LoogaMenuPanelDefinition definition, LoogaMenuPanelMode panelMode, bool required)
+        private LoogaMenuPanel TryShowPanel(LoogaMenuPanelDefinition definition,
+            LoogaMenuMissingPanelBehavior missingPanelBehavior, LoogaMenuScreenDefinition screen)
         {
             if (definition == null)
-                return !required;
+            {
+                ReportMissingPanel(screen, definition, missingPanelBehavior);
+                return null;
+            }
 
             if (!_panels.TryGetValue(definition, out LoogaMenuPanel panelComponent) || panelComponent == null)
-                return false;
+            {
+                ReportMissingPanel(screen, definition, missingPanelBehavior);
+                return null;
+            }
 
-            panelComponent.Show(panelMode);
+            panelComponent.Show();
             _visiblePanels.Add(panelComponent);
-            return true;
+            return panelComponent;
         }
 
         private void RefreshVisiblePanels()
@@ -191,7 +222,7 @@ namespace LoogaSoft.Menu
         private void RefreshCoveredViews()
         {
             HashSet<LoogaMenuPanel> topPanels =
-                new(ResolveScreenPanels(_openScreens.Count > 0 ? _openScreens[^1] : null));
+                new(ResolveTopScreenPanels(_openScreens.Count > 0 ? _openScreens[^1] : null));
 
             foreach (LoogaMenuPanel panel in _panels.Values)
             {
@@ -208,7 +239,7 @@ namespace LoogaSoft.Menu
                 return Array.Empty<LoogaMenuPanel>();
 
             List<LoogaMenuPanel> panels = new();
-            AddPanel(screen.BackgroundPanel, panels);
+            AddPanel(screen.GetBackgroundPanel(_defaultBackgroundPanel), panels);
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
             {
@@ -218,7 +249,37 @@ namespace LoogaSoft.Menu
                 }
             }
 
-            AddPanel(screen.ActionBarPanel, panels);
+            AddPanel(screen.GetActionBarPanel(_defaultActionBarPanel), panels);
+            return panels.ToArray();
+        }
+
+        private LoogaMenuPanel[] ResolveTopScreenPanels(LoogaMenuScreenDefinition screen)
+        {
+            if (screen == null)
+                return Array.Empty<LoogaMenuPanel>();
+
+            List<LoogaMenuPanel> panels = new();
+            LoogaMenuPanelDefinition backgroundPanel = screen.GetBackgroundPanel(_defaultBackgroundPanel);
+            LoogaMenuPanelDefinition actionBarPanel = screen.GetActionBarPanel(_defaultActionBarPanel);
+
+            AddPanel(backgroundPanel, panels);
+
+            foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+            {
+                if (entry == null)
+                    continue;
+
+                if (entry.OpenMode == LoogaMenuOpenMode.Replace || entry.OpenMode == LoogaMenuOpenMode.AddOverlay)
+                {
+                    panels.RemoveAll(panel => panel != null
+                        && panel.Panel != backgroundPanel
+                        && panel.Panel != actionBarPanel);
+                }
+
+                AddPanel(entry.Panel, panels);
+            }
+
+            AddPanel(actionBarPanel, panels);
             return panels.ToArray();
         }
 
@@ -240,7 +301,8 @@ namespace LoogaSoft.Menu
 
             foreach (LoogaMenuScreenDefinition screen in _openScreens)
             {
-                if (screen.BackgroundPanel == panel || screen.ActionBarPanel == panel)
+                if (screen.GetBackgroundPanel(_defaultBackgroundPanel) == panel
+                    || screen.GetActionBarPanel(_defaultActionBarPanel) == panel)
                     return true;
 
                 foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
@@ -251,6 +313,108 @@ namespace LoogaSoft.Menu
             }
 
             return false;
+        }
+
+        private bool CanOpenScreen(LoogaMenuScreenDefinition screen, UnityEngine.Object requester)
+        {
+            foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+            {
+                if (entry == null || entry.MissingPanelBehavior != LoogaMenuMissingPanelBehavior.BlockOpen)
+                    continue;
+
+                if (entry.Panel == null || !_panels.TryGetValue(entry.Panel, out LoogaMenuPanel panel) || panel == null)
+                {
+                    Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}' because required panel '{entry.Panel}' is missing.",
+                        requester);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void ApplyPanelParameters(LoogaMenuScreenPanelEntry entry)
+        {
+            foreach (LoogaMenuBlackboardParameter parameter in entry.Parameters)
+            {
+                if (parameter != null && parameter.TryGetValue(out LoogaSoft.Blackboard.LoogaBlackboardValue value))
+                {
+                    _stateRegistry.SetValue(parameter.Key, value);
+                }
+            }
+        }
+
+        private void RemovePanelParameters(LoogaMenuScreenDefinition closedScreen)
+        {
+            foreach (LoogaMenuScreenPanelEntry entry in closedScreen.Panels)
+            {
+                if (entry == null)
+                    continue;
+
+                foreach (LoogaMenuBlackboardParameter parameter in entry.Parameters)
+                {
+                    if (parameter == null || parameter.Key == null || IsParameterUsedByOpenScreen(parameter.Key))
+                        continue;
+
+                    _stateRegistry.RemoveValue(parameter.Key);
+                }
+            }
+        }
+
+        private bool IsParameterUsedByOpenScreen(LoogaSoft.Blackboard.LoogaBlackboardKey key)
+        {
+            foreach (LoogaMenuScreenDefinition screen in _openScreens)
+            {
+                foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+                {
+                    if (entry == null)
+                        continue;
+
+                    foreach (LoogaMenuBlackboardParameter parameter in entry.Parameters)
+                    {
+                        if (parameter != null && parameter.Key == key)
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private void ReapplyOpenScreenParameters()
+        {
+            foreach (LoogaMenuScreenDefinition screen in _openScreens)
+            {
+                foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+                {
+                    if (entry != null)
+                    {
+                        ApplyPanelParameters(entry);
+                    }
+                }
+            }
+        }
+
+        private void HidePanels(List<LoogaMenuPanel> panels)
+        {
+            foreach (LoogaMenuPanel panel in panels)
+            {
+                if (panel == null)
+                    continue;
+
+                panel.Hide();
+                _visiblePanels.Remove(panel);
+            }
+        }
+
+        private static void ReportMissingPanel(LoogaMenuScreenDefinition screen, LoogaMenuPanelDefinition panel,
+            LoogaMenuMissingPanelBehavior missingPanelBehavior)
+        {
+            if (missingPanelBehavior != LoogaMenuMissingPanelBehavior.Warn)
+                return;
+
+            string panelName = panel != null ? panel.name : "Unassigned";
+            Debug.LogWarning($"Menu screen '{screen.DisplayName}' could not find panel '{panelName}'.");
         }
 
         private LoogaMenuState CreateState()

@@ -1,3 +1,4 @@
+using LoogaSoft.Blackboard;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
