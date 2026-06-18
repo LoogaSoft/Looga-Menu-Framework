@@ -6,6 +6,7 @@ namespace LoogaSoft.Menu
     public sealed class LoogaStateRegistry : ILoogaStateRegistry
     {
         private readonly Dictionary<Type, object> _states = new();
+        private readonly Dictionary<LoogaBlackboardKey, LoogaBlackboardValue> _blackboard = new();
 
         public void Register<TState>(TState state) where TState : class
         {
@@ -39,9 +40,57 @@ namespace LoogaSoft.Menu
             return false;
         }
 
+        public void SetValue(LoogaBlackboardKey key, LoogaBlackboardValue value)
+        {
+            if (key == null || key.ValueType != value.type)
+                return;
+
+            _blackboard[key] = value;
+        }
+
+        public void SetBool(LoogaBlackboardKey key, bool value)
+        {
+            SetValue(key, LoogaBlackboardValue.Bool(value));
+        }
+
+        public void SetInt(LoogaBlackboardKey key, int value)
+        {
+            SetValue(key, LoogaBlackboardValue.Int(value));
+        }
+
+        public void SetFloat(LoogaBlackboardKey key, float value)
+        {
+            SetValue(key, LoogaBlackboardValue.Float(value));
+        }
+
+        public void SetString(LoogaBlackboardKey key, string value)
+        {
+            SetValue(key, LoogaBlackboardValue.String(value));
+        }
+
+        public bool TryGetValue(LoogaBlackboardKey key, out LoogaBlackboardValue value)
+        {
+            if (key != null && _blackboard.TryGetValue(key, out value))
+            {
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public void RemoveValue(LoogaBlackboardKey key)
+        {
+            if (key != null)
+            {
+                _blackboard.Remove(key);
+            }
+        }
+
         public void Clear()
         {
             _states.Clear();
+            _blackboard.Clear();
         }
     }
 }

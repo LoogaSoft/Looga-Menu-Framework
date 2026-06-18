@@ -7,9 +7,11 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuRuleSet : ScriptableObject
     {
         [SerializeField] private LoogaMenuRuleMode _mode = LoogaMenuRuleMode.AllMustPass;
+        [SerializeField] private LoogaBlackboardCondition[] _conditions = Array.Empty<LoogaBlackboardCondition>();
         [SerializeField] private LoogaMenuRule[] _rules = Array.Empty<LoogaMenuRule>();
 
         public LoogaMenuRuleMode Mode => _mode;
+        public LoogaBlackboardCondition[] Conditions => _conditions;
         public LoogaMenuRule[] Rules => _rules;
 
         public bool CanOpen(LoogaMenuOpenContext context, ILoogaStateRegistry states,
@@ -17,10 +19,28 @@ namespace LoogaSoft.Menu
         {
             failedRule = null;
 
-            if (_rules == null || _rules.Length == 0)
+            if ((_conditions == null || _conditions.Length == 0) && (_rules == null || _rules.Length == 0))
                 return true;
 
             bool anyPassed = false;
+
+            if (_conditions != null)
+            {
+                foreach (LoogaBlackboardCondition condition in _conditions)
+                {
+                    if (condition == null)
+                        continue;
+
+                    bool passed = condition.Evaluate(states);
+                    anyPassed |= passed;
+
+                    if (_mode == LoogaMenuRuleMode.AllMustPass && !passed)
+                        return false;
+                }
+            }
+
+            if (_rules == null)
+                return _mode != LoogaMenuRuleMode.AnyCanPass || anyPassed;
 
             foreach (LoogaMenuRule rule in _rules)
             {
