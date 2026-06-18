@@ -21,7 +21,6 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Composition", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"));
             DrawPanelReference(serializedObject.FindProperty("_backgroundPanelMode"),
                 serializedObject.FindProperty("_backgroundPanel"), "Background Panel");
@@ -29,11 +28,7 @@ namespace LoogaSoft.Menu.Editor
                 serializedObject.FindProperty("_actionBarPanel"), "Action Bar Panel");
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Rules", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
-
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Behavior", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeExistingScreens"));
@@ -118,20 +113,22 @@ namespace LoogaSoft.Menu.Editor
             SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
 
-            Rect row = new(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
-            float openModeWidth = Mathf.Min(136f, row.width * 0.24f);
-            float missingWidth = Mathf.Min(112f, row.width * 0.2f);
-            float panelWidth = row.width - openModeWidth - missingWidth - Gap * 2f;
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            float y = position.y;
 
-            Rect panelRect = new(row.x, row.y, panelWidth, row.height);
-            Rect openModeRect = new(panelRect.xMax + Gap, row.y, openModeWidth, row.height);
-            Rect missingRect = new(openModeRect.xMax + Gap, row.y, missingWidth, row.height);
+            Rect panelRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(panelRect, panel, new GUIContent("Panel"));
 
-            EditorGUI.PropertyField(panelRect, panel, GUIContent.none);
-            EditorGUI.PropertyField(openModeRect, openMode, GUIContent.none);
-            EditorGUI.PropertyField(missingRect, missingBehavior, GUIContent.none);
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect openModeRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(openModeRect, openMode, new GUIContent("Open Mode"));
 
-            Rect parametersRect = new(position.x, row.yMax + EditorGUIUtility.standardVerticalSpacing,
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect missingRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect parametersRect = new(position.x, y,
                 position.width, EditorGUI.GetPropertyHeight(parameters, true));
             EditorGUI.PropertyField(parametersRect, parameters);
 
@@ -141,8 +138,8 @@ namespace LoogaSoft.Menu.Editor
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return EditorGUIUtility.singleLineHeight
-                + EditorGUIUtility.standardVerticalSpacing
+            return EditorGUIUtility.singleLineHeight * 3f
+                + EditorGUIUtility.standardVerticalSpacing * 3f
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }
     }

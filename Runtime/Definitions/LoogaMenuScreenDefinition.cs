@@ -25,10 +25,8 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuPanelReferenceMode _actionBarPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
         [SerializeField] private LoogaMenuPanelDefinition _actionBarPanel;
 
-        [Header("Rules")]
-        [SerializeField] private LoogaMenuRuleSet _rules;
-
         [Header("Behavior")]
+        [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuInputPolicy _inputPolicy;
         [SerializeField] private bool _closeAsGroupOnBack = true;
         [SerializeField] private bool _closeExistingScreens = true;
