@@ -28,6 +28,7 @@ namespace LoogaSoft.Menu
 
         [Header("Behavior")]
         [SerializeField] private LoogaMenuRuleSet _rules;
+        [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
         [SerializeField] private LoogaMenuInputPolicy _inputPolicy;
         [SerializeField] private bool _closeAsGroupOnBack = true;
         [SerializeField] private bool _closeExistingScreens = true;
@@ -44,6 +45,7 @@ namespace LoogaSoft.Menu
         public LoogaMenuPanelReferenceMode ActionBarPanelMode => _actionBarPanelMode;
         public LoogaMenuPanelDefinition ActionBarPanelOverride => _actionBarPanel;
         public LoogaMenuRuleSet Rules => _rules;
+        public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
         public bool CloseAsGroupOnBack => _closeAsGroupOnBack;
         public bool CloseExistingScreens => _closeExistingScreens;

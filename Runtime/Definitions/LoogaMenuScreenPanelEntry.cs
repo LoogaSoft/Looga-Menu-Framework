@@ -8,13 +8,9 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuScreenPanelEntry
     {
         [SerializeField] private LoogaMenuPanelDefinition _panel;
-        [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
-        [SerializeField] private LoogaMenuCoveredBehavior _whenCovered = LoogaMenuCoveredBehavior.HideAndDisable;
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 
         public LoogaMenuPanelDefinition Panel => _panel;
-        public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
-        public LoogaMenuCoveredBehavior WhenCovered => _whenCovered;
         public LoogaMenuBlackboardParameter[] Parameters => _parameters;
     }
 
@@ -24,10 +20,8 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuContentTargetType _targetType;
         [SerializeField] private LoogaMenuPanelDefinition _panel;
         [SerializeField] private LoogaMenuScreenDefinition _screen;
-        [SerializeField] private LoogaMenuOpenMode _openMode = LoogaMenuOpenMode.AddOverlay;
+        [SerializeField] private LoogaMenuOpenMode _openMode = LoogaMenuOpenMode.Overlay;
         [SerializeField] private LoogaMenuContentBackBehavior _backBehavior = LoogaMenuContentBackBehavior.ReturnToParent;
-        [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
-        [SerializeField] private LoogaMenuCoveredBehavior _whenCovered = LoogaMenuCoveredBehavior.HideAndDisable;
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 
@@ -36,8 +30,6 @@ namespace LoogaSoft.Menu
         public LoogaMenuScreenDefinition Screen => _screen;
         public LoogaMenuOpenMode OpenMode => _openMode;
         public LoogaMenuContentBackBehavior BackBehavior => _backBehavior;
-        public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
-        public LoogaMenuCoveredBehavior WhenCovered => _whenCovered;
         public LoogaMenuRuleSet Rules => _rules;
         public LoogaMenuBlackboardParameter[] Parameters => _parameters;
     }

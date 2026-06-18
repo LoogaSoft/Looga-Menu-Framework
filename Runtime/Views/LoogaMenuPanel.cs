@@ -82,7 +82,7 @@ namespace LoogaSoft.Menu
             }
         }
 
-        public void SetCovered(bool covered, LoogaMenuCoveredBehavior coveredBehavior = LoogaMenuCoveredBehavior.HideAndDisable)
+        public void SetCovered(bool covered)
         {
             ResolveReferences(true);
 
@@ -97,10 +97,9 @@ namespace LoogaSoft.Menu
                 return;
             }
 
-            _canvasGroup.alpha = coveredBehavior == LoogaMenuCoveredBehavior.HideAndDisable ? 0f : 1f;
-            bool keepsInteraction = coveredBehavior == LoogaMenuCoveredBehavior.StayVisible;
-            _canvasGroup.interactable = keepsInteraction;
-            _canvasGroup.blocksRaycasts = keepsInteraction;
+            _canvasGroup.alpha = 1f;
+            _canvasGroup.interactable = false;
+            _canvasGroup.blocksRaycasts = false;
         }
 
         private void ResolveReferences()

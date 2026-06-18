@@ -29,7 +29,9 @@ namespace LoogaSoft.Menu.Editor
                 serializedObject.FindProperty("_actionBarPanel"), "Action Bar Panel");
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"), new GUIContent("Open Requirements"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"),
+                new GUIContent("Missing Panel Behavior"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeExistingScreens"));
@@ -110,8 +112,6 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             SerializedProperty panel = property.FindPropertyRelative("_panel");
-            SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
-            SerializedProperty whenCovered = property.FindPropertyRelative("_whenCovered");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
@@ -119,14 +119,6 @@ namespace LoogaSoft.Menu.Editor
 
             Rect panelRect = new(position.x, y, position.width, lineHeight);
             EditorGUI.PropertyField(panelRect, panel, new GUIContent("Panel"));
-
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect missingRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
-
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect coveredRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect parametersRect = new(position.x, y,
@@ -139,8 +131,8 @@ namespace LoogaSoft.Menu.Editor
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return EditorGUIUtility.singleLineHeight * 3f
-                + EditorGUIUtility.standardVerticalSpacing * 3f
+            return EditorGUIUtility.singleLineHeight
+                + EditorGUIUtility.standardVerticalSpacing
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }
     }
@@ -159,8 +151,6 @@ namespace LoogaSoft.Menu.Editor
             SerializedProperty screen = property.FindPropertyRelative("_screen");
             SerializedProperty openMode = property.FindPropertyRelative("_openMode");
             SerializedProperty backBehavior = property.FindPropertyRelative("_backBehavior");
-            SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
-            SerializedProperty whenCovered = property.FindPropertyRelative("_whenCovered");
             SerializedProperty rules = property.FindPropertyRelative("_rules");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
 
@@ -186,27 +176,12 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.PropertyField(backBehaviorRect, backBehavior, new GUIContent("Back Behavior"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect advancedRect = new(position.x, y, position.width, lineHeight);
-            property.isExpanded = EditorGUI.Foldout(advancedRect, property.isExpanded, "Advanced", true);
+            Rect rulesRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(rulesRect, rules, new GUIContent("Open Requirements"));
 
-            if (property.isExpanded)
-            {
-                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-                Rect missingRect = new(position.x, y, position.width, lineHeight);
-                EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
-
-                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-                Rect coveredRect = new(position.x, y, position.width, lineHeight);
-                EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
-
-                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-                Rect rulesRect = new(position.x, y, position.width, lineHeight);
-                EditorGUI.PropertyField(rulesRect, rules);
-
-                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-                Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
-                EditorGUI.PropertyField(parametersRect, parameters);
-            }
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
+            EditorGUI.PropertyField(parametersRect, parameters);
 
             EditorGUI.EndProperty();
         }
@@ -215,13 +190,8 @@ namespace LoogaSoft.Menu.Editor
         {
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float height = lineHeight * 4f + spacing * 3f;
-            if (!property.isExpanded)
-                return height;
-
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return height
-                + lineHeight * 3f
+            return lineHeight * 4f
                 + spacing * 4f
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }

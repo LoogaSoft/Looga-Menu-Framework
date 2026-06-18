@@ -4,7 +4,7 @@ namespace LoogaSoft.Menu
     {
         Replace = 0,
         AddAlongside = 1,
-        AddOverlay = 2
+        Overlay = 2
     }
 
     public enum LoogaMenuContentTargetType
@@ -28,10 +28,4 @@ namespace LoogaSoft.Menu
         BlockOpen = 2
     }
 
-    public enum LoogaMenuCoveredBehavior
-    {
-        HideAndDisable = 0,
-        DisableInteraction = 1,
-        StayVisible = 2
-    }
 }
