@@ -10,8 +10,6 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : UnityEditor.Editor
     {
-        private const float ExposedScriptableVerticalOffset = 1f;
-
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
@@ -32,8 +30,8 @@ namespace LoogaSoft.Menu.Editor
                 serializedObject.FindProperty("_actionBarPanel"), "Action Bar Panel");
 
             EditorGUILayout.Space(4f);
-            DrawExposedScriptableField(serializedObject.FindProperty("_rules"), new GUIContent("Open Requirements"));
-            DrawExposedScriptableField(serializedObject.FindProperty("_inputPolicy"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"), new GUIContent("Open Requirements"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"),
                 new GUIContent("Missing Panel Behavior"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
@@ -41,15 +39,6 @@ namespace LoogaSoft.Menu.Editor
             serializedObject.ApplyModifiedProperties();
 
             DrawValidation(screen);
-        }
-
-        private static void DrawExposedScriptableField(SerializedProperty property, GUIContent label = null)
-        {
-            float propertyHeight = EditorGUI.GetPropertyHeight(property, true);
-            Rect rect = EditorGUILayout.GetControlRect(true, propertyHeight + ExposedScriptableVerticalOffset);
-            rect.y += ExposedScriptableVerticalOffset;
-            rect.height = propertyHeight;
-            EditorGUI.PropertyField(rect, property, label ?? new GUIContent(property.displayName), true);
         }
 
         private static void DrawPanelReference(SerializedProperty mode, SerializedProperty panel, string label)
@@ -154,7 +143,6 @@ namespace LoogaSoft.Menu.Editor
     public sealed class LoogaMenuScreenContentEntryDrawer : PropertyDrawer
     {
         private const float Gap = 4f;
-        private const float ExposedScriptableVerticalOffset = 1f;
         private static readonly Dictionary<string, ReorderableList> ParameterLists = new();
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -192,10 +180,10 @@ namespace LoogaSoft.Menu.Editor
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             float rulesHeight = EditorGUI.GetPropertyHeight(rules, true);
-            Rect rulesRect = new(position.x, y + ExposedScriptableVerticalOffset, position.width, rulesHeight);
+            Rect rulesRect = new(position.x, y, position.width, rulesHeight);
             EditorGUI.PropertyField(rulesRect, rules, new GUIContent("Open Requirements"));
 
-            y += rulesHeight + ExposedScriptableVerticalOffset + EditorGUIUtility.standardVerticalSpacing;
+            y += rulesHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect parametersRect = new(position.x, y, position.width, LoogaMenuStyledListUtility.GetHeight(parameters));
             LoogaMenuStyledListUtility.Draw(parametersRect, parameters, ParameterLists);
 
@@ -211,7 +199,6 @@ namespace LoogaSoft.Menu.Editor
             return lineHeight * 3f
                 + spacing * 4f
                 + EditorGUI.GetPropertyHeight(rules, true)
-                + ExposedScriptableVerticalOffset
                 + LoogaMenuStyledListUtility.GetHeight(parameters);
         }
     }
