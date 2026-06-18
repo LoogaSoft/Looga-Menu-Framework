@@ -125,7 +125,7 @@ namespace LoogaSoft.Menu.Editor
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect missingRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel"));
+            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect parametersRect = new(position.x, y,
