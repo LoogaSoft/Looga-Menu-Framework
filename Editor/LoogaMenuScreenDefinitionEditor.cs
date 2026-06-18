@@ -148,6 +148,8 @@ namespace LoogaSoft.Menu.Editor
     [CustomPropertyDrawer(typeof(LoogaMenuScreenContentEntry))]
     public sealed class LoogaMenuScreenContentEntryDrawer : PropertyDrawer
     {
+        private const float Gap = 4f;
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
@@ -165,14 +167,15 @@ namespace LoogaSoft.Menu.Editor
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float y = position.y;
 
-            Rect targetTypeRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(targetTypeRect, targetType, new GUIContent("Target Type"));
-
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect targetRect = new(position.x, y, position.width, lineHeight);
+            Rect targetRow = new(position.x, y, position.width, lineHeight);
+            Rect targetContentRect = EditorGUI.PrefixLabel(targetRow, new GUIContent("Target"));
+            float targetTypeWidth = Mathf.Min(116f, targetContentRect.width * 0.34f);
+            Rect targetTypeRect = new(targetContentRect.x, targetContentRect.y, targetTypeWidth, targetContentRect.height);
+            Rect targetRect = new(targetTypeRect.xMax + Gap, targetRow.y,
+                targetContentRect.width - targetTypeWidth - Gap, targetRow.height);
             bool targetsScreen = (LoogaMenuContentTargetType)targetType.enumValueIndex == LoogaMenuContentTargetType.Screen;
-            EditorGUI.PropertyField(targetRect, targetsScreen ? screen : panel,
-                new GUIContent(targetsScreen ? "Screen" : "Panel"));
+            EditorGUI.PropertyField(targetTypeRect, targetType, GUIContent.none);
+            EditorGUI.PropertyField(targetRect, targetsScreen ? screen : panel, GUIContent.none);
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect openModeRect = new(position.x, y, position.width, lineHeight);
@@ -183,29 +186,43 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.PropertyField(backBehaviorRect, backBehavior, new GUIContent("Back Behavior"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect missingRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
+            Rect advancedRect = new(position.x, y, position.width, lineHeight);
+            property.isExpanded = EditorGUI.Foldout(advancedRect, property.isExpanded, "Advanced", true);
 
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect coveredRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
+            if (property.isExpanded)
+            {
+                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+                Rect missingRect = new(position.x, y, position.width, lineHeight);
+                EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
 
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect rulesRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(rulesRect, rules);
+                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+                Rect coveredRect = new(position.x, y, position.width, lineHeight);
+                EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
 
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
-            EditorGUI.PropertyField(parametersRect, parameters);
+                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+                Rect rulesRect = new(position.x, y, position.width, lineHeight);
+                EditorGUI.PropertyField(rulesRect, rules);
+
+                y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+                Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
+                EditorGUI.PropertyField(parametersRect, parameters);
+            }
 
             EditorGUI.EndProperty();
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            float height = lineHeight * 4f + spacing * 3f;
+            if (!property.isExpanded)
+                return height;
+
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return EditorGUIUtility.singleLineHeight * 7f
-                + EditorGUIUtility.standardVerticalSpacing * 7f
+            return height
+                + lineHeight * 3f
+                + spacing * 4f
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }
     }

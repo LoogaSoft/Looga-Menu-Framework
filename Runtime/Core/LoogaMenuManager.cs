@@ -68,11 +68,9 @@ namespace LoogaSoft.Menu
                 return false;
 
             LoogaMenuScreenDefinition parentScreen = _openScreens[^1];
-            LoogaMenuOpenContext context = new(parentScreen, requester, payload);
-            if (entry.Rules != null && !entry.Rules.CanOpen(context, _stateRegistry, out LoogaMenuRule failedRule))
+            if (entry.Rules != null && !entry.Rules.CanOpen(_stateRegistry, out string failedReason))
             {
-                string reason = failedRule != null ? failedRule.FailureReason : "Unknown rule failed.";
-                Debug.LogWarning($"Cannot open menu content from '{parentScreen.DisplayName}'. {reason}", requester);
+                Debug.LogWarning($"Cannot open menu content from '{parentScreen.DisplayName}'. {failedReason}", requester);
                 return false;
             }
 
@@ -101,11 +99,9 @@ namespace LoogaSoft.Menu
             if (screen == null)
                 return false;
 
-            LoogaMenuOpenContext context = new(screen, requester, payload);
-            if (screen.Rules != null && !screen.Rules.CanOpen(context, _stateRegistry, out LoogaMenuRule failedRule))
+            if (screen.Rules != null && !screen.Rules.CanOpen(_stateRegistry, out string failedReason))
             {
-                string reason = failedRule != null ? failedRule.FailureReason : "Unknown rule failed.";
-                Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {reason}", requester);
+                Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {failedReason}", requester);
                 return false;
             }
 
@@ -198,11 +194,9 @@ namespace LoogaSoft.Menu
                 return false;
             }
 
-            LoogaMenuOpenContext context = new(screen, requester, payload);
-            if (screen.Rules != null && !screen.Rules.CanOpen(context, _stateRegistry, out LoogaMenuRule failedRule))
+            if (screen.Rules != null && !screen.Rules.CanOpen(_stateRegistry, out string failedReason))
             {
-                string reason = failedRule != null ? failedRule.FailureReason : "Unknown rule failed.";
-                Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {reason}", requester);
+                Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {failedReason}", requester);
                 return false;
             }
 
