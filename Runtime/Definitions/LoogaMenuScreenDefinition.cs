@@ -20,6 +20,7 @@ namespace LoogaSoft.Menu
 
         [Header("Composition")]
         [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
+        [SerializeField] private LoogaMenuScreenContentEntry[] _contentEntries = Array.Empty<LoogaMenuScreenContentEntry>();
         [SerializeField] private LoogaMenuPanelReferenceMode _backgroundPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
         [SerializeField] private LoogaMenuPanelDefinition _backgroundPanel;
         [SerializeField] private LoogaMenuPanelReferenceMode _actionBarPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
@@ -35,7 +36,9 @@ namespace LoogaSoft.Menu
             ? _displayName
             : name;
         public string Description => _description;
+        public LoogaMenuScreenPanelEntry[] DefaultPanels => _panels;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
+        public LoogaMenuScreenContentEntry[] ContentEntries => _contentEntries;
         public LoogaMenuPanelReferenceMode BackgroundPanelMode => _backgroundPanelMode;
         public LoogaMenuPanelDefinition BackgroundPanelOverride => _backgroundPanel;
         public LoogaMenuPanelReferenceMode ActionBarPanelMode => _actionBarPanelMode;

@@ -3,12 +3,21 @@ using UnityEngine.UI;
 
 namespace LoogaSoft.Menu
 {
+    public enum LoogaMenuOpenButtonTarget
+    {
+        Screen = 0,
+        ScreenContentEntry = 1
+    }
+
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Button))]
     [AddComponentMenu("LoogaSoft/Menu/Open Menu Button")]
     public sealed class LoogaMenuOpenButton : MonoBehaviour
     {
+        [SerializeField] private LoogaMenuOpenButtonTarget _target = LoogaMenuOpenButtonTarget.Screen;
         [SerializeField] private LoogaMenuScreenDefinition _screen;
+        [SerializeField] private LoogaMenuScreenDefinition _contentScreen;
+        [SerializeField] private int _contentEntryIndex;
         [SerializeField] private LoogaMenuRoot _menuRoot;
 
         private Button _button;
@@ -30,10 +39,24 @@ namespace LoogaSoft.Menu
         private void Open()
         {
             LoogaMenuRoot root = _menuRoot != null ? _menuRoot : LoogaMenuRoot.Active;
-            if (root == null || _screen == null)
+            if (root == null)
                 return;
 
-            root.Open(_screen, this);
+            if (_target == LoogaMenuOpenButtonTarget.ScreenContentEntry)
+            {
+                if (_contentScreen == null
+                    || _contentEntryIndex < 0
+                    || _contentEntryIndex >= _contentScreen.ContentEntries.Length)
+                    return;
+
+                root.OpenContent(_contentScreen.ContentEntries[_contentEntryIndex], this);
+                return;
+            }
+
+            if (_screen != null)
+            {
+                root.Open(_screen, this);
+            }
         }
     }
 }

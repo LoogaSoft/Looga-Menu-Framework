@@ -59,6 +59,11 @@ namespace LoogaSoft.Menu
             return _menuManager != null && _menuManager.Open(screen, requester, payload);
         }
 
+        public bool OpenContent(LoogaMenuScreenContentEntry entry, UnityEngine.Object requester = null, object payload = null)
+        {
+            return _menuManager != null && _menuManager.OpenContent(entry, requester, payload);
+        }
+
         public bool Back()
         {
             return _menuManager != null && _menuManager.Back();

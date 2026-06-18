@@ -21,7 +21,8 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"), new GUIContent("Default Panels"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_contentEntries"), new GUIContent("Content Entries"));
             DrawPanelReference(serializedObject.FindProperty("_backgroundPanelMode"),
                 serializedObject.FindProperty("_backgroundPanel"), "Background Panel");
             DrawPanelReference(serializedObject.FindProperty("_actionBarPanelMode"),
@@ -62,7 +63,7 @@ namespace LoogaSoft.Menu.Editor
 
             ValidatePanel("Background", screen.GetBackgroundPanel(defaultBackgroundPanel), panels, ref hasIssue);
 
-            foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+            foreach (LoogaMenuScreenPanelEntry entry in screen.DefaultPanels)
             {
                 if (entry == null)
                     continue;
@@ -109,8 +110,8 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             SerializedProperty panel = property.FindPropertyRelative("_panel");
-            SerializedProperty openMode = property.FindPropertyRelative("_openMode");
             SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
+            SerializedProperty whenCovered = property.FindPropertyRelative("_whenCovered");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
@@ -120,12 +121,12 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.PropertyField(panelRect, panel, new GUIContent("Panel"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect openModeRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(openModeRect, openMode, new GUIContent("Open Mode"));
-
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect missingRect = new(position.x, y, position.width, lineHeight);
             EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect coveredRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect parametersRect = new(position.x, y,
@@ -140,6 +141,71 @@ namespace LoogaSoft.Menu.Editor
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
             return EditorGUIUtility.singleLineHeight * 3f
                 + EditorGUIUtility.standardVerticalSpacing * 3f
+                + EditorGUI.GetPropertyHeight(parameters, true);
+        }
+    }
+
+    [CustomPropertyDrawer(typeof(LoogaMenuScreenContentEntry))]
+    public sealed class LoogaMenuScreenContentEntryDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.BeginProperty(position, label, property);
+
+            SerializedProperty targetType = property.FindPropertyRelative("_targetType");
+            SerializedProperty panel = property.FindPropertyRelative("_panel");
+            SerializedProperty screen = property.FindPropertyRelative("_screen");
+            SerializedProperty openMode = property.FindPropertyRelative("_openMode");
+            SerializedProperty backBehavior = property.FindPropertyRelative("_backBehavior");
+            SerializedProperty missingBehavior = property.FindPropertyRelative("_missingPanelBehavior");
+            SerializedProperty whenCovered = property.FindPropertyRelative("_whenCovered");
+            SerializedProperty rules = property.FindPropertyRelative("_rules");
+            SerializedProperty parameters = property.FindPropertyRelative("_parameters");
+
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            float y = position.y;
+
+            Rect targetTypeRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(targetTypeRect, targetType, new GUIContent("Target Type"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect targetRect = new(position.x, y, position.width, lineHeight);
+            bool targetsScreen = (LoogaMenuContentTargetType)targetType.enumValueIndex == LoogaMenuContentTargetType.Screen;
+            EditorGUI.PropertyField(targetRect, targetsScreen ? screen : panel,
+                new GUIContent(targetsScreen ? "Screen" : "Panel"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect openModeRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(openModeRect, openMode, new GUIContent("Open Mode"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect backBehaviorRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(backBehaviorRect, backBehavior, new GUIContent("Back Behavior"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect missingRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(missingRect, missingBehavior, new GUIContent("Missing Panel Behavior"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect coveredRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(coveredRect, whenCovered, new GUIContent("When Covered"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect rulesRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(rulesRect, rules);
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
+            Rect parametersRect = new(position.x, y, position.width, EditorGUI.GetPropertyHeight(parameters, true));
+            EditorGUI.PropertyField(parametersRect, parameters);
+
+            EditorGUI.EndProperty();
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            SerializedProperty parameters = property.FindPropertyRelative("_parameters");
+            return EditorGUIUtility.singleLineHeight * 7f
+                + EditorGUIUtility.standardVerticalSpacing * 7f
                 + EditorGUI.GetPropertyHeight(parameters, true);
         }
     }
@@ -191,6 +257,71 @@ namespace LoogaSoft.Menu.Editor
             {
                 EditorGUI.PropertyField(rect, value, GUIContent.none);
             }
+        }
+    }
+
+    [CustomEditor(typeof(LoogaMenuOpenButton))]
+    public sealed class LoogaMenuOpenButtonEditor : UnityEditor.Editor
+    {
+        public override void OnInspectorGUI()
+        {
+            serializedObject.Update();
+
+            SerializedProperty target = serializedObject.FindProperty("_target");
+            EditorGUILayout.PropertyField(target);
+
+            if ((LoogaMenuOpenButtonTarget)target.enumValueIndex == LoogaMenuOpenButtonTarget.ScreenContentEntry)
+            {
+                SerializedProperty contentScreen = serializedObject.FindProperty("_contentScreen");
+                SerializedProperty contentEntryIndex = serializedObject.FindProperty("_contentEntryIndex");
+                EditorGUILayout.PropertyField(contentScreen, new GUIContent("Content Screen"));
+                DrawContentEntryPopup(contentScreen.objectReferenceValue as LoogaMenuScreenDefinition, contentEntryIndex);
+            }
+            else
+            {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("_screen"));
+            }
+
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_menuRoot"));
+            serializedObject.ApplyModifiedProperties();
+        }
+
+        private static void DrawContentEntryPopup(LoogaMenuScreenDefinition screen, SerializedProperty index)
+        {
+            if (screen == null)
+            {
+                EditorGUILayout.HelpBox("Assign a screen definition to choose one of its content entries.", MessageType.Info);
+                return;
+            }
+
+            LoogaMenuScreenContentEntry[] entries = screen.ContentEntries;
+            if (entries == null || entries.Length == 0)
+            {
+                EditorGUILayout.HelpBox($"'{screen.DisplayName}' has no content entries.", MessageType.Warning);
+                return;
+            }
+
+            string[] labels = new string[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                labels[i] = GetContentEntryLabel(entries[i], i);
+            }
+
+            index.intValue = Mathf.Clamp(index.intValue, 0, entries.Length - 1);
+            index.intValue = EditorGUILayout.Popup("Content Entry", index.intValue, labels);
+        }
+
+        private static string GetContentEntryLabel(LoogaMenuScreenContentEntry entry, int index)
+        {
+            if (entry == null)
+                return $"Entry {index}";
+
+            if (entry.TargetType == LoogaMenuContentTargetType.Screen)
+            {
+                return entry.Screen != null ? entry.Screen.DisplayName : $"Entry {index} (Missing Screen)";
+            }
+
+            return entry.Panel != null ? entry.Panel.DisplayName : $"Entry {index} (Missing Panel)";
         }
     }
 }

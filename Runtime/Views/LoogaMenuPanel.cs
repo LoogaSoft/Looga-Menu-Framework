@@ -76,33 +76,31 @@ namespace LoogaSoft.Menu
                 _canvasGroup.blocksRaycasts = false;
             }
 
-            LoogaMenuVisibilityMode visibilityMode = _panel != null
-                ? _panel.VisibilityMode
-                : LoogaMenuVisibilityMode.DisableCanvas;
-
-            if (visibilityMode == LoogaMenuVisibilityMode.DeactivateGameObject)
-            {
-                gameObject.SetActive(false);
-                return;
-            }
-
-            if (visibilityMode == LoogaMenuVisibilityMode.DisableCanvas && _canvas != null)
+            if (_canvas != null)
             {
                 _canvas.enabled = false;
             }
         }
 
-        public void SetCovered(bool covered)
+        public void SetCovered(bool covered, LoogaMenuCoveredBehavior coveredBehavior = LoogaMenuCoveredBehavior.HideAndDisable)
         {
             ResolveReferences(true);
 
             if (_canvasGroup == null)
                 return;
 
-            bool hideWhenCovered = _panel == null || _panel.HideWhenCovered;
-            _canvasGroup.interactable = !covered;
-            _canvasGroup.blocksRaycasts = !covered;
-            _canvasGroup.alpha = covered && hideWhenCovered ? 0f : 1f;
+            if (!covered)
+            {
+                _canvasGroup.alpha = 1f;
+                _canvasGroup.interactable = true;
+                _canvasGroup.blocksRaycasts = true;
+                return;
+            }
+
+            _canvasGroup.alpha = coveredBehavior == LoogaMenuCoveredBehavior.HideAndDisable ? 0f : 1f;
+            bool keepsInteraction = coveredBehavior == LoogaMenuCoveredBehavior.StayVisible;
+            _canvasGroup.interactable = keepsInteraction;
+            _canvasGroup.blocksRaycasts = keepsInteraction;
         }
 
         private void ResolveReferences()

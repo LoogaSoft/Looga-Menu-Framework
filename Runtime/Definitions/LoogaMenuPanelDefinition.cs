@@ -10,9 +10,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
-        [Header("Visibility")]
-        [SerializeField] private LoogaMenuVisibilityMode _visibilityMode = LoogaMenuVisibilityMode.DisableCanvas;
-        [SerializeField] private bool _hideWhenCovered = true;
+        [Header("Feedback")]
         [SerializeField] private bool _skipTransitions;
         [SerializeField] private bool _skipOpenSound;
         [SerializeField] private bool _skipCloseSound;
@@ -21,8 +19,6 @@ namespace LoogaSoft.Menu
             ? _displayName
             : name;
         public string Description => _description;
-        public LoogaMenuVisibilityMode VisibilityMode => _visibilityMode;
-        public bool HideWhenCovered => _hideWhenCovered;
         public bool SkipTransitions => _skipTransitions;
         public bool SkipOpenSound => _skipOpenSound;
         public bool SkipCloseSound => _skipCloseSound;

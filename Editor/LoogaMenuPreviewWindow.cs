@@ -94,7 +94,6 @@ namespace LoogaSoft.Menu.Editor
             LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
             LoogaMenuPanelDefinition defaultBackgroundPanel = root != null ? root.DefaultBackgroundPanel : null;
             LoogaMenuPanelDefinition defaultActionBarPanel = root != null ? root.DefaultActionBarPanel : null;
-            List<LoogaMenuPanel> replaceablePanels = new();
 
             foreach (LoogaMenuPanel panel in panels)
             {
@@ -104,27 +103,12 @@ namespace LoogaSoft.Menu.Editor
 
             ShowPanel(screen.GetBackgroundPanel(defaultBackgroundPanel));
 
-            foreach (LoogaMenuScreenPanelEntry entry in screen.Panels)
+            foreach (LoogaMenuScreenPanelEntry entry in screen.DefaultPanels)
             {
                 if (entry == null)
                     continue;
 
-                if (entry.OpenMode == LoogaMenuOpenMode.Replace)
-                {
-                    HidePreviewPanels(replaceablePanels);
-                    replaceablePanels.Clear();
-                }
-
-                if (entry.OpenMode == LoogaMenuOpenMode.AddOverlay)
-                {
-                    CoverPreviewPanels(replaceablePanels);
-                }
-
-                LoogaMenuPanel panel = ShowPanel(entry.Panel);
-                if (panel != null)
-                {
-                    replaceablePanels.Add(panel);
-                }
+                ShowPanel(entry.Panel);
             }
 
             ShowPanel(screen.GetActionBarPanel(defaultActionBarPanel));
@@ -150,28 +134,5 @@ namespace LoogaSoft.Menu.Editor
             return panelComponent;
         }
 
-        private static void HidePreviewPanels(List<LoogaMenuPanel> panels)
-        {
-            foreach (LoogaMenuPanel panel in panels)
-            {
-                if (panel == null)
-                    continue;
-
-                panel.Hide();
-                EditorUtility.SetDirty(panel);
-            }
-        }
-
-        private static void CoverPreviewPanels(List<LoogaMenuPanel> panels)
-        {
-            foreach (LoogaMenuPanel panel in panels)
-            {
-                if (panel == null)
-                    continue;
-
-                panel.SetCovered(true);
-                EditorUtility.SetDirty(panel);
-            }
-        }
     }
 }
