@@ -60,9 +60,17 @@ namespace LoogaSoft.Menu.Editor
 
             HashSet<LoogaMenuPanelDefinition> panels = new();
             bool hasIssue = false;
-            LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
-            LoogaMenuPanelDefinition defaultBackgroundPanel = root != null ? root.DefaultBackgroundPanel : null;
-            LoogaMenuPanelDefinition defaultActionBarPanel = root != null ? root.DefaultActionBarPanel : null;
+            LoogaMenuRoot root = LoogaMenuEditorUtility.FindMenuRoot();
+            if (root == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "Scene panel validation is unavailable because no LoogaMenuRoot is loaded. Open the UI scene, or any scene containing a LoogaMenuRoot, to validate panel references against live scene objects.",
+                    MessageType.Info);
+                return;
+            }
+
+            LoogaMenuPanelDefinition defaultBackgroundPanel = root.DefaultBackgroundPanel;
+            LoogaMenuPanelDefinition defaultActionBarPanel = root.DefaultActionBarPanel;
 
             ValidatePanel("Background", screen.GetBackgroundPanel(defaultBackgroundPanel), panels, ref hasIssue);
 
