@@ -158,6 +158,7 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             SerializedProperty targetType = property.FindPropertyRelative("_targetType");
+            SerializedProperty useCustomDisplayName = property.FindPropertyRelative("_useCustomDisplayName");
             SerializedProperty displayName = property.FindPropertyRelative("_displayName");
             SerializedProperty panel = property.FindPropertyRelative("_panel");
             SerializedProperty screen = property.FindPropertyRelative("_screen");
@@ -169,8 +170,20 @@ namespace LoogaSoft.Menu.Editor
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float y = position.y;
 
+            Rect useCustomNameRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(useCustomNameRect, useCustomDisplayName, new GUIContent("Use Custom Display Name"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect displayNameRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(displayNameRect, displayName, new GUIContent("Display Name"));
+            using (new EditorGUI.DisabledScope(!useCustomDisplayName.boolValue))
+            {
+                if (!useCustomDisplayName.boolValue)
+                {
+                    displayName.stringValue = ResolveDefaultDisplayName(targetType, panel, screen);
+                }
+
+                EditorGUI.PropertyField(displayNameRect, displayName, new GUIContent("Display Name"));
+            }
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect targetRow = new(position.x, y, position.width, lineHeight);
@@ -209,10 +222,26 @@ namespace LoogaSoft.Menu.Editor
             float spacing = EditorGUIUtility.standardVerticalSpacing;
             SerializedProperty rules = property.FindPropertyRelative("_rules");
             SerializedProperty parameters = property.FindPropertyRelative("_parameters");
-            return lineHeight * 4f
-                + spacing * 5f
+            return lineHeight * 5f
+                + spacing * 6f
                 + EditorGUI.GetPropertyHeight(rules, true)
                 + LoogaMenuStyledListUtility.GetHeight(parameters);
+        }
+
+        private static string ResolveDefaultDisplayName(SerializedProperty targetType, SerializedProperty panel,
+            SerializedProperty screen)
+        {
+            bool targetsScreen = (LoogaMenuContentTargetType)targetType.enumValueIndex == LoogaMenuContentTargetType.Screen;
+            if (targetsScreen)
+            {
+                return screen.objectReferenceValue is LoogaMenuScreenDefinition screenDefinition
+                    ? $"{screenDefinition.DisplayName}_Screen"
+                    : "Unassigned_Screen";
+            }
+
+            return panel.objectReferenceValue is LoogaMenuPanelDefinition panelDefinition
+                ? $"{panelDefinition.DisplayName}_Panel"
+                : "Unassigned_Panel";
         }
     }
 

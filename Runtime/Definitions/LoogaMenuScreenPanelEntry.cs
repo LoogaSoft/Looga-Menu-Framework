@@ -18,6 +18,7 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuScreenContentEntry
     {
         [SerializeField, HideInInspector] private string _stableId;
+        [SerializeField] private bool _useCustomDisplayName;
         [SerializeField] private string _displayName;
         [SerializeField] private LoogaMenuContentTargetType _targetType;
         [SerializeField] private LoogaMenuPanelDefinition _panel;
@@ -28,7 +29,9 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 
         public string StableId => _stableId;
-        public string DisplayName => !string.IsNullOrWhiteSpace(_displayName) ? _displayName : ResolveDefaultDisplayName();
+        public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
+            ? _displayName
+            : ResolveDefaultDisplayName();
         public LoogaMenuContentTargetType TargetType => _targetType;
         public LoogaMenuPanelDefinition Panel => _panel;
         public LoogaMenuScreenDefinition Screen => _screen;
@@ -45,12 +48,20 @@ namespace LoogaSoft.Menu
             _stableId = Guid.NewGuid().ToString("N");
         }
 
+        internal void RefreshDefaultDisplayName()
+        {
+            if (_useCustomDisplayName)
+                return;
+
+            _displayName = ResolveDefaultDisplayName();
+        }
+
         private string ResolveDefaultDisplayName()
         {
             if (_targetType == LoogaMenuContentTargetType.Screen)
-                return _screen != null ? _screen.DisplayName : "Screen Content";
+                return _screen != null ? $"{_screen.DisplayName}_Screen" : "Unassigned_Screen";
 
-            return _panel != null ? _panel.DisplayName : "Panel Content";
+            return _panel != null ? $"{_panel.DisplayName}_Panel" : "Unassigned_Panel";
         }
     }
 

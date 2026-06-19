@@ -89,6 +89,7 @@ namespace LoogaSoft.Menu
             foreach (LoogaMenuScreenContentEntry entry in _contentEntries)
             {
                 entry?.EnsureStableId();
+                entry?.RefreshDefaultDisplayName();
             }
         }
 
