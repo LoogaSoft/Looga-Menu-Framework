@@ -1,10 +1,10 @@
+using System;
 using LoogaSoft.Blackboard;
 
 namespace LoogaSoft.Menu
 {
-    public interface ILoogaStateRegistry
+    [Obsolete("Use LoogaSoft.Blackboard.ILoogaBlackboardReader instead.")]
+    public interface ILoogaStateRegistry : ILoogaBlackboardReader
     {
-        bool TryGet<TState>(out TState state) where TState : class;
-        bool TryGetValue(LoogaBlackboardKey key, out LoogaBlackboardValue value);
     }
 }

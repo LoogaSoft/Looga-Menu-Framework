@@ -1,49 +1,17 @@
-using System;
-using System.Collections.Generic;
 using LoogaSoft.Blackboard;
 
 namespace LoogaSoft.Menu
 {
-    public sealed class LoogaStateRegistry : ILoogaStateRegistry
+    /// <summary>
+    /// Menu-owned runtime blackboard. Kept for API compatibility while rules depend on blackboard interfaces.
+    /// </summary>
+    public sealed class LoogaStateRegistry : ILoogaStateRegistry, ILoogaBlackboardWriter
     {
-        private readonly Dictionary<Type, object> _states = new();
         private readonly LoogaBlackboard _blackboard = new();
 
         public LoogaStateRegistry()
         {
             LoogaBlackboardRuntimeRegistry.SetActive(_blackboard);
-        }
-
-        public void Register<TState>(TState state) where TState : class
-        {
-            if (state == null)
-                return;
-
-            _states[typeof(TState)] = state;
-        }
-
-        public void Unregister<TState>(TState state) where TState : class
-        {
-            if (state == null)
-                return;
-
-            Type type = typeof(TState);
-            if (_states.TryGetValue(type, out object current) && ReferenceEquals(current, state))
-            {
-                _states.Remove(type);
-            }
-        }
-
-        public bool TryGet<TState>(out TState state) where TState : class
-        {
-            if (_states.TryGetValue(typeof(TState), out object value) && value is TState typedState)
-            {
-                state = typedState;
-                return true;
-            }
-
-            state = null;
-            return false;
         }
 
         public void SetValue(LoogaBlackboardKey key, LoogaBlackboardValue value)
@@ -83,7 +51,6 @@ namespace LoogaSoft.Menu
 
         public void Clear()
         {
-            _states.Clear();
             _blackboard.Clear();
         }
     }

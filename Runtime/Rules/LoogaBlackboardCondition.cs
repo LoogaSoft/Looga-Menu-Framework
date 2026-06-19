@@ -30,9 +30,9 @@ namespace LoogaSoft.Menu
             ? _key != null ? $"{_key.DisplayName} condition failed." : "Blackboard condition failed."
             : _failureReason;
 
-        public bool Evaluate(ILoogaStateRegistry states)
+        public bool Evaluate(ILoogaBlackboardReader blackboard)
         {
-            if (_key == null || states == null || !states.TryGetValue(_key, out LoogaBlackboardValue value))
+            if (_key == null || blackboard == null || !blackboard.TryGetValue(_key, out LoogaBlackboardValue value))
                 return false;
 
             if (value.type != _key.ValueType)

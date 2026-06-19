@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Blackboard;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -12,7 +13,7 @@ namespace LoogaSoft.Menu
         public LoogaMenuRuleMode Mode => _mode;
         public LoogaBlackboardCondition[] Conditions => _conditions;
 
-        public bool CanOpen(ILoogaStateRegistry states, out string failureReason)
+        public bool CanOpen(ILoogaBlackboardReader blackboard, out string failureReason)
         {
             failureReason = string.Empty;
 
@@ -27,7 +28,7 @@ namespace LoogaSoft.Menu
                     continue;
 
                 firstAssignedCondition ??= condition;
-                bool passed = condition.Evaluate(states);
+                bool passed = condition.Evaluate(blackboard);
                 anyPassed |= passed;
 
                 if (_mode == LoogaMenuRuleMode.AllMustPass && !passed)

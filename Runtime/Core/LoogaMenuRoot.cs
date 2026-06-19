@@ -1,3 +1,4 @@
+using LoogaSoft.Blackboard;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -24,6 +25,8 @@ namespace LoogaSoft.Menu
 
         public static LoogaMenuRoot Active { get; private set; }
         public LoogaMenuManager MenuManager => _menuManager;
+        public ILoogaBlackboardReader BlackboardReader => _stateRegistry;
+        public ILoogaBlackboardWriter BlackboardWriter => _stateRegistry;
         public LoogaStateRegistry StateRegistry => _stateRegistry;
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
         public LoogaMenuPanelDefinition DefaultActionBarPanel => _defaultActionBarPanel;
@@ -31,7 +34,7 @@ namespace LoogaSoft.Menu
         private void Awake()
         {
             Active = this;
-            _menuManager = new LoogaMenuManager(_stateRegistry, _defaultBackgroundPanel, _defaultActionBarPanel);
+            _menuManager = new LoogaMenuManager(_stateRegistry, _stateRegistry, _defaultBackgroundPanel, _defaultActionBarPanel);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();
@@ -86,16 +89,6 @@ namespace LoogaSoft.Menu
         public void RegisterPanel(LoogaMenuPanel panel)
         {
             _menuManager?.RegisterPanel(panel);
-        }
-
-        public void RegisterState<TState>(TState state) where TState : class
-        {
-            _stateRegistry.Register(state);
-        }
-
-        public void UnregisterState<TState>(TState state) where TState : class
-        {
-            _stateRegistry.Unregister(state);
         }
 
         private void RegisterPanels()

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using LoogaSoft.Blackboard;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -10,17 +11,20 @@ namespace LoogaSoft.Menu
         private readonly List<LoogaMenuScreenDefinition> _openScreens = new();
         private readonly List<LoogaMenuActiveContent> _openContent = new();
         private readonly List<LoogaMenuPanel> _visiblePanels = new();
-        private readonly LoogaStateRegistry _stateRegistry;
+        private readonly ILoogaBlackboardReader _blackboardReader;
+        private readonly ILoogaBlackboardWriter _blackboardWriter;
         private readonly LoogaMenuPanelDefinition _defaultBackgroundPanel;
         private readonly LoogaMenuPanelDefinition _defaultActionBarPanel;
 
         private ILoogaMenuTransitionHandler _transitionHandler;
         private ILoogaMenuAudioHandler _audioHandler;
 
-        public LoogaMenuManager(LoogaStateRegistry stateRegistry, LoogaMenuPanelDefinition defaultBackgroundPanel = null,
+        public LoogaMenuManager(ILoogaBlackboardReader blackboardReader, ILoogaBlackboardWriter blackboardWriter,
+            LoogaMenuPanelDefinition defaultBackgroundPanel = null,
             LoogaMenuPanelDefinition defaultActionBarPanel = null)
         {
-            _stateRegistry = stateRegistry;
+            _blackboardReader = blackboardReader;
+            _blackboardWriter = blackboardWriter;
             _defaultBackgroundPanel = defaultBackgroundPanel;
             _defaultActionBarPanel = defaultActionBarPanel;
         }
@@ -103,7 +107,7 @@ namespace LoogaSoft.Menu
                     return true;
             }
 
-            if (entry.Rules != null && !entry.Rules.CanOpen(_stateRegistry, out string failedReason))
+            if (entry.Rules != null && !entry.Rules.CanOpen(_blackboardReader, out string failedReason))
             {
                 Debug.LogWarning($"Cannot open menu content from '{parentScreen.DisplayName}'. {failedReason}", requester);
                 return false;
@@ -134,7 +138,7 @@ namespace LoogaSoft.Menu
             if (screen == null)
                 return false;
 
-            if (screen.Rules != null && !screen.Rules.CanOpen(_stateRegistry, out string failedReason))
+            if (screen.Rules != null && !screen.Rules.CanOpen(_blackboardReader, out string failedReason))
             {
                 Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {failedReason}", requester);
                 return false;
@@ -229,7 +233,7 @@ namespace LoogaSoft.Menu
                 return false;
             }
 
-            if (screen.Rules != null && !screen.Rules.CanOpen(_stateRegistry, out string failedReason))
+            if (screen.Rules != null && !screen.Rules.CanOpen(_blackboardReader, out string failedReason))
             {
                 Debug.LogWarning($"Cannot open menu screen '{screen.DisplayName}'. {failedReason}", requester);
                 return false;
@@ -441,7 +445,7 @@ namespace LoogaSoft.Menu
             {
                 if (parameter != null && parameter.TryGetValue(out LoogaSoft.Blackboard.LoogaBlackboardValue value))
                 {
-                    _stateRegistry.SetValue(parameter.Key, value);
+                    _blackboardWriter.SetValue(parameter.Key, value);
                 }
             }
         }
@@ -458,7 +462,7 @@ namespace LoogaSoft.Menu
                     if (parameter == null || parameter.Key == null || IsParameterUsedByOpenScreen(parameter.Key))
                         continue;
 
-                    _stateRegistry.RemoveValue(parameter.Key);
+                    _blackboardWriter.RemoveValue(parameter.Key);
                 }
             }
         }
