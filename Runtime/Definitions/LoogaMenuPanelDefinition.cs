@@ -2,7 +2,7 @@
 
 namespace LoogaSoft.Menu
 {
-    [CreateAssetMenu(fileName = "New Menu Panel", menuName = "LoogaSoft/Menu/Panel Definition")]
+    [CreateAssetMenu(fileName = "New Menu Panel", menuName = "LoogaSoft/Menu Framework/Panel Definition")]
     public sealed class LoogaMenuPanelDefinition : ScriptableObject
     {
         [Header("Identity")]

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu
 {
-    [CreateAssetMenu(fileName = "New Menu Rule Set", menuName = "LoogaSoft/Menu/Rule Set")]
+    [CreateAssetMenu(fileName = "New Menu Rule Set", menuName = "LoogaSoft/Menu Framework/Rule Set")]
     public sealed class LoogaMenuRuleSet : ScriptableObject
     {
         [SerializeField] private LoogaMenuRuleMode _mode = LoogaMenuRuleMode.AllMustPass;

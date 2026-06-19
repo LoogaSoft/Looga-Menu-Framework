@@ -18,8 +18,6 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuScreenDefinition _screen;
         [SerializeField] private LoogaMenuScreenDefinition _contentScreen;
         [SerializeField, HideInInspector] private string _contentEntryId;
-        [SerializeField] private bool _useLegacyContentIndex;
-        [SerializeField] private int _contentEntryIndex;
         [SerializeField] private LoogaMenuRoot _menuRoot;
 
         private Button _button;
@@ -46,18 +44,7 @@ namespace LoogaSoft.Menu
 
             if (_target == LoogaMenuOpenButtonTarget.ScreenContentEntry)
             {
-                if (!_useLegacyContentIndex)
-                {
-                    root.OpenContent(_contentScreen, _contentEntryId, this);
-                    return;
-                }
-
-                if (_contentScreen == null
-                    || _contentEntryIndex < 0
-                    || _contentEntryIndex >= _contentScreen.ContentEntries.Length)
-                    return;
-
-                root.OpenContent(_contentScreen.ContentEntries[_contentEntryIndex], this);
+                root.OpenContent(_contentScreen, _contentEntryId, this);
                 return;
             }
 

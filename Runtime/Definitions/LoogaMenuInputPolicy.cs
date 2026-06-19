@@ -87,7 +87,7 @@ namespace LoogaSoft.Menu
             blockInventoryHotkeys;
     }
 
-    [CreateAssetMenu(fileName = "New Menu Input Policy", menuName = "LoogaSoft/Menu/Input Policy")]
+    [CreateAssetMenu(fileName = "New Menu Input Policy", menuName = "LoogaSoft/Menu Framework/Input Policy")]
     public sealed class LoogaMenuInputPolicy : ScriptableObject
     {
         [Header("Cursor")]

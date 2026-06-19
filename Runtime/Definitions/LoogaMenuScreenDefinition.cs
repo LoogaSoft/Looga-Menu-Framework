@@ -10,7 +10,7 @@ namespace LoogaSoft.Menu
         None = 2
     }
 
-    [CreateAssetMenu(fileName = "New Menu Screen", menuName = "LoogaSoft/Menu/Screen Definition")]
+    [CreateAssetMenu(fileName = "New Menu Screen", menuName = "LoogaSoft/Menu Framework/Screen Definition")]
     public sealed class LoogaMenuScreenDefinition : ScriptableObject
     {
         [Header("Identity")]
@@ -60,6 +60,9 @@ namespace LoogaSoft.Menu
             return ResolveOptionalPanel(_actionBarPanelMode, _actionBarPanel, rootDefault);
         }
 
+        /// <summary>
+        /// Finds a content entry by its serialized stable ID.
+        /// </summary>
         public bool TryGetContentEntry(string stableId, out LoogaMenuScreenContentEntry entry)
         {
             entry = null;

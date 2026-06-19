@@ -64,6 +64,9 @@ namespace LoogaSoft.Menu
             return _menuManager != null && _menuManager.OpenContent(entry, requester, payload);
         }
 
+        /// <summary>
+        /// Opens a content entry by its stable ID, opening the owning screen first if needed.
+        /// </summary>
         public bool OpenContent(LoogaMenuScreenDefinition screen, string contentEntryId,
             UnityEngine.Object requester = null, object payload = null)
         {

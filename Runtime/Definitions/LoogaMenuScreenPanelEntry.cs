@@ -59,9 +59,9 @@ namespace LoogaSoft.Menu
         private string ResolveDefaultDisplayName()
         {
             if (_targetType == LoogaMenuContentTargetType.Screen)
-                return _screen != null ? $"{_screen.DisplayName}_Screen" : "Unassigned_Screen";
+                return _screen != null ? _screen.DisplayName : "Unassigned Content";
 
-            return _panel != null ? $"{_panel.DisplayName}_Panel" : "Unassigned_Panel";
+            return _panel != null ? _panel.DisplayName : "Unassigned Content";
         }
     }
 
@@ -74,6 +74,9 @@ namespace LoogaSoft.Menu
         public LoogaMenuScreenDefinition Screen => _screen;
         public string ContentEntryId => _contentEntryId;
 
+        /// <summary>
+        /// Opens the referenced content entry on its owning screen.
+        /// </summary>
         public bool Open(LoogaMenuRoot root, UnityEngine.Object requester = null, object payload = null)
         {
             return root != null && root.OpenContent(_screen, _contentEntryId, requester, payload);
