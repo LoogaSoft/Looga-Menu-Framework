@@ -68,6 +68,41 @@ namespace LoogaSoft.Menu
                 return false;
 
             LoogaMenuScreenDefinition parentScreen = _openScreens[^1];
+            return OpenContent(parentScreen, entry, requester, payload);
+        }
+
+        public bool OpenContent(LoogaMenuScreenDefinition screen, LoogaMenuContentId contentId,
+            UnityEngine.Object requester = null, object payload = null)
+        {
+            if (screen == null || contentId == null)
+                return false;
+
+            if (!_openScreens.Contains(screen) && !Open(screen, requester, payload))
+                return false;
+
+            if (!screen.TryGetContentEntry(contentId, out LoogaMenuScreenContentEntry entry))
+            {
+                Debug.LogWarning(
+                    $"Cannot open menu content '{contentId.name}' because screen '{screen.DisplayName}' does not contain an entry with that ID.",
+                    requester);
+                return false;
+            }
+
+            return OpenContent(screen, entry, requester, payload);
+        }
+
+        private bool OpenContent(LoogaMenuScreenDefinition parentScreen, LoogaMenuScreenContentEntry entry,
+            UnityEngine.Object requester, object payload)
+        {
+            if (parentScreen == null || entry == null)
+                return false;
+
+            foreach (LoogaMenuActiveContent activeContent in _openContent)
+            {
+                if (activeContent.ParentScreen == parentScreen && activeContent.Entry == entry)
+                    return true;
+            }
+
             if (entry.Rules != null && !entry.Rules.CanOpen(_stateRegistry, out string failedReason))
             {
                 Debug.LogWarning($"Cannot open menu content from '{parentScreen.DisplayName}'. {failedReason}", requester);

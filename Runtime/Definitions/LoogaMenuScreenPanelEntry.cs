@@ -17,6 +17,7 @@ namespace LoogaSoft.Menu
     [Serializable]
     public sealed class LoogaMenuScreenContentEntry
     {
+        [SerializeField] private LoogaMenuContentId _contentId;
         [SerializeField] private LoogaMenuContentTargetType _targetType;
         [SerializeField] private LoogaMenuPanelDefinition _panel;
         [SerializeField] private LoogaMenuScreenDefinition _screen;
@@ -25,6 +26,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 
+        public LoogaMenuContentId ContentId => _contentId;
         public LoogaMenuContentTargetType TargetType => _targetType;
         public LoogaMenuPanelDefinition Panel => _panel;
         public LoogaMenuScreenDefinition Screen => _screen;

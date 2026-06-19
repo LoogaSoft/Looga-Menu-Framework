@@ -60,6 +60,25 @@ namespace LoogaSoft.Menu
             return ResolveOptionalPanel(_actionBarPanelMode, _actionBarPanel, rootDefault);
         }
 
+        public bool TryGetContentEntry(LoogaMenuContentId contentId, out LoogaMenuScreenContentEntry entry)
+        {
+            entry = null;
+
+            if (contentId == null)
+                return false;
+
+            foreach (LoogaMenuScreenContentEntry candidate in _contentEntries)
+            {
+                if (candidate == null || candidate.ContentId != contentId)
+                    continue;
+
+                entry = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
         private void OnValidate()
         {
             if (!_useCustomDisplayName)
