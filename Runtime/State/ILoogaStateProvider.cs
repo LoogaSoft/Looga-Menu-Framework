@@ -1,8 +1,10 @@
+using LoogaSoft.Blackboard;
+
 namespace LoogaSoft.Menu
 {
     public interface ILoogaStateProvider
     {
-        void RegisterStates(LoogaStateRegistry registry);
-        void UnregisterStates(LoogaStateRegistry registry);
+        void RegisterStates(ILoogaBlackboardWriter blackboard);
+        void UnregisterStates(ILoogaBlackboardWriter blackboard);
     }
 }

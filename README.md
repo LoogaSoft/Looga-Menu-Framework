@@ -172,7 +172,7 @@ public sealed class SceneMenuStateWriter : MonoBehaviour
 
     private void Start()
     {
-        LoogaMenuRoot.Active.StateRegistry.SetBool(_isRaidScene, true);
+        LoogaMenuRoot.Active.BlackboardWriter.SetBool(_isRaidScene, true);
     }
 }
 ```
@@ -268,19 +268,7 @@ Keep payloads project-specific and cast them only inside project-specific panel 
 
 ## Custom Panel Reactions
 
-If a panel needs to react to a panel mode asset, implement:
-
-```csharp
-using LoogaSoft.Menu;
-
-public sealed class ExamplePanelModeReceiver : MonoBehaviour, ILoogaMenuPanelModeReceiver
-{
-    public void ApplyPanelMode(LoogaMenuPanelMode panelMode)
-    {
-        // Apply project-specific panel mode here.
-    }
-}
-```
+Use content-entry blackboard parameters for simple mode switches, such as opening the same stockpile panel in normal or attachment-selection mode. Panels can read those values from the active blackboard or receive a richer runtime `payload` from the caller when object references are needed.
 
 ## Transition And Audio Hooks
 
@@ -333,12 +321,11 @@ LoogaMenuRoot.Active.CloseAll();
 State registry:
 
 ```csharp
-LoogaMenuRoot.Active.StateRegistry.SetBool(key, true);
-LoogaMenuRoot.Active.StateRegistry.SetInt(key, 2);
-LoogaMenuRoot.Active.StateRegistry.SetFloat(key, 1.5f);
-LoogaMenuRoot.Active.StateRegistry.SetString(key, "Station");
-LoogaMenuRoot.Active.StateRegistry.RemoveValue(key);
-LoogaMenuRoot.Active.StateRegistry.Clear();
+LoogaMenuRoot.Active.BlackboardWriter.SetBool(key, true);
+LoogaMenuRoot.Active.BlackboardWriter.SetInt(key, 2);
+LoogaMenuRoot.Active.BlackboardWriter.SetFloat(key, 1.5f);
+LoogaMenuRoot.Active.BlackboardWriter.SetString(key, "Station");
+LoogaMenuRoot.Active.BlackboardWriter.RemoveValue(key);
 ```
 
 Usually avoid calling `LoogaMenuPanel.Show()`, `Hide()`, or `SetCovered()` directly. Let `LoogaMenuRoot` and `LoogaMenuManager` control panel visibility.

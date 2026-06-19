@@ -20,21 +20,23 @@ namespace LoogaSoft.Menu
         [SerializeField] private CursorLockMode _closedLockMode = CursorLockMode.Locked;
         [SerializeField] private bool _closedCursorVisible;
 
-        private readonly LoogaStateRegistry _stateRegistry = new();
+        private LoogaBlackboard _ownedBlackboard;
+        private ILoogaBlackboardReader _blackboardReader;
+        private ILoogaBlackboardWriter _blackboardWriter;
         private LoogaMenuManager _menuManager;
 
         public static LoogaMenuRoot Active { get; private set; }
         public LoogaMenuManager MenuManager => _menuManager;
-        public ILoogaBlackboardReader BlackboardReader => _stateRegistry;
-        public ILoogaBlackboardWriter BlackboardWriter => _stateRegistry;
-        public LoogaStateRegistry StateRegistry => _stateRegistry;
+        public ILoogaBlackboardReader BlackboardReader => _blackboardReader;
+        public ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
         public LoogaMenuPanelDefinition DefaultActionBarPanel => _defaultActionBarPanel;
 
         private void Awake()
         {
             Active = this;
-            _menuManager = new LoogaMenuManager(_stateRegistry, _stateRegistry, _defaultBackgroundPanel, _defaultActionBarPanel);
+            ResolveBlackboard();
+            _menuManager = new LoogaMenuManager(_blackboardReader, _blackboardWriter, _defaultBackgroundPanel, _defaultActionBarPanel);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();
@@ -50,6 +52,7 @@ namespace LoogaSoft.Menu
             }
 
             UnregisterStateProviders();
+            ReleaseOwnedBlackboard();
 
             if (Active == this)
             {
@@ -113,7 +116,7 @@ namespace LoogaSoft.Menu
             {
                 if (component is ILoogaStateProvider provider)
                 {
-                    provider.RegisterStates(_stateRegistry);
+                    provider.RegisterStates(_blackboardWriter);
                 }
             }
         }
@@ -124,9 +127,32 @@ namespace LoogaSoft.Menu
             {
                 if (component is ILoogaStateProvider provider)
                 {
-                    provider.UnregisterStates(_stateRegistry);
+                    provider.UnregisterStates(_blackboardWriter);
                 }
             }
+        }
+
+        private void ResolveBlackboard()
+        {
+            LoogaBlackboard blackboard = LoogaBlackboardRegistry.Active;
+            if (blackboard == null)
+            {
+                _ownedBlackboard = new LoogaBlackboard();
+                LoogaBlackboardRegistry.SetActive(_ownedBlackboard);
+                blackboard = _ownedBlackboard;
+            }
+
+            _blackboardReader = blackboard;
+            _blackboardWriter = blackboard;
+        }
+
+        private void ReleaseOwnedBlackboard()
+        {
+            if (_ownedBlackboard == null)
+                return;
+
+            LoogaBlackboardRegistry.ClearActive(_ownedBlackboard);
+            _ownedBlackboard = null;
         }
 
         private void ResolveHandlers()
