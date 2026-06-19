@@ -17,7 +17,8 @@ namespace LoogaSoft.Menu
     [Serializable]
     public sealed class LoogaMenuScreenContentEntry
     {
-        [SerializeField] private LoogaMenuContentId _contentId;
+        [SerializeField, HideInInspector] private string _stableId;
+        [SerializeField] private string _displayName;
         [SerializeField] private LoogaMenuContentTargetType _targetType;
         [SerializeField] private LoogaMenuPanelDefinition _panel;
         [SerializeField] private LoogaMenuScreenDefinition _screen;
@@ -26,7 +27,8 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuBlackboardParameter[] _parameters = Array.Empty<LoogaMenuBlackboardParameter>();
 
-        public LoogaMenuContentId ContentId => _contentId;
+        public string StableId => _stableId;
+        public string DisplayName => !string.IsNullOrWhiteSpace(_displayName) ? _displayName : ResolveDefaultDisplayName();
         public LoogaMenuContentTargetType TargetType => _targetType;
         public LoogaMenuPanelDefinition Panel => _panel;
         public LoogaMenuScreenDefinition Screen => _screen;
@@ -34,6 +36,37 @@ namespace LoogaSoft.Menu
         public LoogaMenuContentBackBehavior BackBehavior => _backBehavior;
         public LoogaMenuRuleSet Rules => _rules;
         public LoogaMenuBlackboardParameter[] Parameters => _parameters;
+
+        internal void EnsureStableId()
+        {
+            if (!string.IsNullOrWhiteSpace(_stableId))
+                return;
+
+            _stableId = Guid.NewGuid().ToString("N");
+        }
+
+        private string ResolveDefaultDisplayName()
+        {
+            if (_targetType == LoogaMenuContentTargetType.Screen)
+                return _screen != null ? _screen.DisplayName : "Screen Content";
+
+            return _panel != null ? _panel.DisplayName : "Panel Content";
+        }
+    }
+
+    [Serializable]
+    public sealed class LoogaMenuScreenContentReference
+    {
+        [SerializeField] private LoogaMenuScreenDefinition _screen;
+        [SerializeField, HideInInspector] private string _contentEntryId;
+
+        public LoogaMenuScreenDefinition Screen => _screen;
+        public string ContentEntryId => _contentEntryId;
+
+        public bool Open(LoogaMenuRoot root, UnityEngine.Object requester = null, object payload = null)
+        {
+            return root != null && root.OpenContent(_screen, _contentEntryId, requester, payload);
+        }
     }
 
     [Serializable]

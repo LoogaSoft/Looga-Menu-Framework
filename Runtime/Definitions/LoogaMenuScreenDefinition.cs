@@ -60,16 +60,16 @@ namespace LoogaSoft.Menu
             return ResolveOptionalPanel(_actionBarPanelMode, _actionBarPanel, rootDefault);
         }
 
-        public bool TryGetContentEntry(LoogaMenuContentId contentId, out LoogaMenuScreenContentEntry entry)
+        public bool TryGetContentEntry(string stableId, out LoogaMenuScreenContentEntry entry)
         {
             entry = null;
 
-            if (contentId == null)
+            if (string.IsNullOrWhiteSpace(stableId))
                 return false;
 
             foreach (LoogaMenuScreenContentEntry candidate in _contentEntries)
             {
-                if (candidate == null || candidate.ContentId != contentId)
+                if (candidate == null || candidate.StableId != stableId)
                     continue;
 
                 entry = candidate;
@@ -84,6 +84,11 @@ namespace LoogaSoft.Menu
             if (!_useCustomDisplayName)
             {
                 _displayName = name;
+            }
+
+            foreach (LoogaMenuScreenContentEntry entry in _contentEntries)
+            {
+                entry?.EnsureStableId();
             }
         }
 

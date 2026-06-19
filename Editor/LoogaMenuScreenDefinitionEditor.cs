@@ -158,7 +158,7 @@ namespace LoogaSoft.Menu.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             SerializedProperty targetType = property.FindPropertyRelative("_targetType");
-            SerializedProperty contentId = property.FindPropertyRelative("_contentId");
+            SerializedProperty displayName = property.FindPropertyRelative("_displayName");
             SerializedProperty panel = property.FindPropertyRelative("_panel");
             SerializedProperty screen = property.FindPropertyRelative("_screen");
             SerializedProperty openMode = property.FindPropertyRelative("_openMode");
@@ -169,6 +169,10 @@ namespace LoogaSoft.Menu.Editor
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float y = position.y;
 
+            Rect displayNameRect = new(position.x, y, position.width, lineHeight);
+            EditorGUI.PropertyField(displayNameRect, displayName, new GUIContent("Display Name"));
+
+            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect targetRow = new(position.x, y, position.width, lineHeight);
             Rect targetContentRect = EditorGUI.PrefixLabel(targetRow, new GUIContent("Target"));
             float targetTypeWidth = Mathf.Min(116f, targetContentRect.width * 0.34f);
@@ -178,10 +182,6 @@ namespace LoogaSoft.Menu.Editor
             bool targetsScreen = (LoogaMenuContentTargetType)targetType.enumValueIndex == LoogaMenuContentTargetType.Screen;
             EditorGUI.PropertyField(targetTypeRect, targetType, GUIContent.none);
             EditorGUI.PropertyField(targetRect, targetsScreen ? screen : panel, GUIContent.none);
-
-            y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
-            Rect contentIdRect = new(position.x, y, position.width, lineHeight);
-            EditorGUI.PropertyField(contentIdRect, contentId, new GUIContent("Content ID"));
 
             y += lineHeight + EditorGUIUtility.standardVerticalSpacing;
             Rect openModeRect = new(position.x, y, position.width, lineHeight);
@@ -402,6 +402,35 @@ namespace LoogaSoft.Menu.Editor
         }
     }
 
+    [CustomPropertyDrawer(typeof(LoogaMenuScreenContentReference))]
+    public sealed class LoogaMenuScreenContentReferenceDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.BeginProperty(position, label, property);
+
+            SerializedProperty screen = property.FindPropertyRelative("_screen");
+            SerializedProperty contentEntryId = property.FindPropertyRelative("_contentEntryId");
+
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            Rect screenRect = new(position.x, position.y, position.width, lineHeight);
+            Rect entryRect = new(position.x, screenRect.yMax + EditorGUIUtility.standardVerticalSpacing,
+                position.width, lineHeight);
+
+            EditorGUI.PropertyField(screenRect, screen);
+            LoogaMenuOpenButtonEditor.DrawContentEntryPopup(entryRect,
+                screen.objectReferenceValue as LoogaMenuScreenDefinition,
+                contentEntryId);
+
+            EditorGUI.EndProperty();
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            return EditorGUIUtility.singleLineHeight * 2f + EditorGUIUtility.standardVerticalSpacing;
+        }
+    }
+
     [CustomEditor(typeof(LoogaMenuOpenButton))]
     public sealed class LoogaMenuOpenButtonEditor : UnityEditor.Editor
     {
@@ -415,11 +444,12 @@ namespace LoogaSoft.Menu.Editor
             if ((LoogaMenuOpenButtonTarget)target.enumValueIndex == LoogaMenuOpenButtonTarget.ScreenContentEntry)
             {
                 SerializedProperty contentScreen = serializedObject.FindProperty("_contentScreen");
-                SerializedProperty contentId = serializedObject.FindProperty("_contentId");
+                SerializedProperty contentEntryId = serializedObject.FindProperty("_contentEntryId");
                 SerializedProperty useLegacyContentIndex = serializedObject.FindProperty("_useLegacyContentIndex");
                 SerializedProperty contentEntryIndex = serializedObject.FindProperty("_contentEntryIndex");
                 EditorGUILayout.PropertyField(contentScreen, new GUIContent("Content Screen"));
-                EditorGUILayout.PropertyField(contentId, new GUIContent("Content ID"));
+                DrawContentEntryPopup(EditorGUILayout.GetControlRect(), contentScreen.objectReferenceValue as LoogaMenuScreenDefinition,
+                    contentEntryId);
                 EditorGUILayout.PropertyField(useLegacyContentIndex, new GUIContent("Use Legacy Index"));
 
                 if (useLegacyContentIndex.boolValue)
@@ -434,6 +464,40 @@ namespace LoogaSoft.Menu.Editor
 
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_menuRoot"));
             serializedObject.ApplyModifiedProperties();
+        }
+
+        internal static void DrawContentEntryPopup(Rect rect, LoogaMenuScreenDefinition screen, SerializedProperty contentEntryId)
+        {
+            if (screen == null)
+            {
+                EditorGUI.LabelField(rect, "Content Entry", "Assign a screen first.");
+                return;
+            }
+
+            LoogaMenuScreenContentEntry[] entries = screen.ContentEntries;
+            if (entries == null || entries.Length == 0)
+            {
+                EditorGUI.LabelField(rect, "Content Entry", "No content entries.");
+                return;
+            }
+
+            string[] labels = new string[entries.Length];
+            int selectedIndex = 0;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                labels[i] = GetContentEntryLabel(entries[i], i);
+                if (entries[i] != null && entries[i].StableId == contentEntryId.stringValue)
+                {
+                    selectedIndex = i;
+                }
+            }
+
+            int newIndex = EditorGUI.Popup(rect, "Content Entry", selectedIndex, labels);
+            if (newIndex >= 0 && newIndex < entries.Length && entries[newIndex] != null)
+            {
+                contentEntryId.stringValue = entries[newIndex].StableId;
+            }
         }
 
         private static void DrawContentEntryPopup(LoogaMenuScreenDefinition screen, SerializedProperty index)
@@ -465,6 +529,9 @@ namespace LoogaSoft.Menu.Editor
         {
             if (entry == null)
                 return $"Entry {index}";
+
+            if (!string.IsNullOrWhiteSpace(entry.DisplayName))
+                return entry.DisplayName;
 
             if (entry.TargetType == LoogaMenuContentTargetType.Screen)
             {
