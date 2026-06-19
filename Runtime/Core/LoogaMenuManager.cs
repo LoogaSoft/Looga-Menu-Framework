@@ -603,7 +603,7 @@ namespace LoogaSoft.Menu
                 if (parameter == null || parameter.Key == null || IsParameterUsedByOpenScreen(parameter.Key))
                     continue;
 
-                _stateRegistry.RemoveValue(parameter.Key);
+                _blackboardWriter.RemoveValue(parameter.Key);
             }
         }
 
