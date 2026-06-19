@@ -11,7 +11,7 @@ namespace LoogaSoft.Menu
 
         public LoogaStateRegistry()
         {
-            LoogaBlackboardRuntimeRegistry.SetActive(_blackboard);
+            LoogaBlackboardRegistry.SetActive(_blackboard);
         }
 
         public void SetValue(LoogaBlackboardKey key, LoogaBlackboardValue value)
