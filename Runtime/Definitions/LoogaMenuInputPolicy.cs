@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -90,15 +91,19 @@ namespace LoogaSoft.Menu
     [CreateAssetMenu(fileName = "New Menu Input Policy", menuName = "LoogaSoft/Menu Framework/Input Policy")]
     public sealed class LoogaMenuInputPolicy : ScriptableObject
     {
-        [Header("Cursor")]
+        [LoogaBoxGroup("Cursor")]
+        [TooltipBox("Controls cursor visibility and lock behavior while this menu policy is active.")]
         [SerializeField] private bool _showsCursor = true;
+        [LoogaBoxGroupEnd]
         [SerializeField] private CursorLockMode _cursorLockMode = CursorLockMode.None;
 
-        [Header("Gameplay")]
+        [LoogaBoxGroup("Gameplay")]
         [SerializeField] private LoogaMenuInputBlockPreset _inputBlockPreset =
             LoogaMenuInputBlockPreset.BlockAllGameplay;
+        [ShowIf(nameof(UsesCustomInputBlockPolicy))]
         [SerializeField] private LoogaMenuGameplayInputBlockPolicy _customInputBlockPolicy =
             LoogaMenuGameplayInputBlockPolicy.AllGameplay;
+        [LoogaBoxGroupEnd]
         [SerializeField] private string _debugLabel;
 
         public bool ShowsCursor => _showsCursor;
@@ -114,5 +119,7 @@ namespace LoogaSoft.Menu
         };
         public bool BlocksGameplayInput => InputBlockPolicy.BlocksAny;
         public string DebugLabel => string.IsNullOrWhiteSpace(_debugLabel) ? name : _debugLabel;
+
+        private bool UsesCustomInputBlockPolicy => _inputBlockPreset == LoogaMenuInputBlockPreset.Custom;
     }
 }

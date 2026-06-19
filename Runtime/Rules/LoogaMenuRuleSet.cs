@@ -1,5 +1,6 @@
 using System;
 using LoogaSoft.Blackboard;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 
 namespace LoogaSoft.Menu
@@ -7,7 +8,10 @@ namespace LoogaSoft.Menu
     [CreateAssetMenu(fileName = "New Menu Rule Set", menuName = "LoogaSoft/Menu Framework/Rule Set")]
     public sealed class LoogaMenuRuleSet : ScriptableObject
     {
+        [LoogaBoxGroup("Requirements")]
+        [TooltipBox("A rule set gates menu screens and content entries using typed blackboard conditions.")]
         [SerializeField] private LoogaMenuRuleMode _mode = LoogaMenuRuleMode.AllMustPass;
+        [LoogaBoxGroupEnd]
         [SerializeField] private LoogaBlackboardCondition[] _conditions = Array.Empty<LoogaBlackboardCondition>();
 
         public LoogaMenuRuleMode Mode => _mode;

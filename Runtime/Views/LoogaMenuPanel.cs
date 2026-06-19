@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using LoogaSoft.Inspector.Runtime;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace LoogaSoft.Menu
@@ -8,7 +9,7 @@ namespace LoogaSoft.Menu
     [AddComponentMenu("LoogaSoft/Menu/Menu Panel")]
     public sealed class LoogaMenuPanel : MonoBehaviour
     {
-        [Header("Definition")]
+        [TooltipBox("Assign the panel definition this scene object represents. Screens enable this panel through that asset reference.")]
         [SerializeField] private LoogaMenuPanelDefinition _panel;
 
         private Canvas _canvas;
@@ -131,4 +132,3 @@ namespace LoogaSoft.Menu
         }
     }
 }
-
