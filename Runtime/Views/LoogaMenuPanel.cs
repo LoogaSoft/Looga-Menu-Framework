@@ -108,7 +108,7 @@ namespace LoogaSoft.Menu
             ResolveReferences(true);
         }
 
-        private void ResolveReferences(bool canAddMissingComponents)
+        private void ResolveReferences(bool logMissingComponents)
         {
             if (_canvas == null)
             {
@@ -120,14 +120,14 @@ namespace LoogaSoft.Menu
                 _canvasGroup = GetComponent<CanvasGroup>();
             }
 
-            if (_canvasGroup == null && canAddMissingComponents)
+            if (logMissingComponents && _canvasGroup == null)
             {
-                _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+                Debug.LogWarning($"{name} is missing a {nameof(CanvasGroup)}. Add one to the menu panel object.", this);
             }
 
-            if (_canvas != null && canAddMissingComponents && _canvas.GetComponent<GraphicRaycaster>() == null)
+            if (logMissingComponents && _canvas != null && _canvas.GetComponent<GraphicRaycaster>() == null)
             {
-                _canvas.gameObject.AddComponent<GraphicRaycaster>();
+                Debug.LogWarning($"{_canvas.name} is missing a {nameof(GraphicRaycaster)}. Add one if this panel needs pointer interaction.", _canvas);
             }
         }
     }
