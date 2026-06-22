@@ -3,7 +3,8 @@
     "rootNamespace": "LoogaSoft",
     "references": [
         "LoogaSoft.Blackboard.Runtime",
-        "LoogaSoft.Inspector.Runtime"
+        "LoogaSoft.Inspector.Runtime",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

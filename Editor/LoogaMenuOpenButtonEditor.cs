@@ -28,7 +28,14 @@ namespace LoogaSoft.Menu.Editor
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("_screen"));
             }
 
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_menuRoot"));
+            SerializedProperty useActiveMenuRoot = serializedObject.FindProperty("_useActiveMenuRoot");
+            EditorGUILayout.PropertyField(useActiveMenuRoot, new GUIContent("Use Active Menu Root"));
+
+            if (!useActiveMenuRoot.boolValue)
+            {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("_menuRoot"), new GUIContent("Menu Root"));
+            }
+
             serializedObject.ApplyModifiedProperties();
         }
     }

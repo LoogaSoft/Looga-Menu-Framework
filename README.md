@@ -254,6 +254,31 @@ For a submenu/content button:
 
 Use `LoogaMenuBackButton` for standard back/cancel buttons. It calls the active root's `Back()`.
 
+## Input Router Setup
+
+Use `LoogaMenuInputRouter` for player/controller input that opens menus directly.
+
+Typical setup:
+
+1. Add `LoogaMenuInputRouter` to the local player prefab or an input-owned object.
+2. Leave `Menu Root` empty if the router should use `LoogaMenuRoot.Active`.
+3. Leave `Manage Action Enabled State` off when a `PlayerInput` or project input bootstrapper already enables actions.
+4. Add one binding per menu input.
+5. Assign the `Input Action Reference`.
+6. Choose the trigger phase, usually `Started` for keyboard/menu toggles.
+7. Choose the target: screen, screen content entry, back, or close all.
+8. Choose the open behavior.
+9. Optionally assign requirements to gate the binding through blackboard rules.
+
+Example bindings:
+
+- Inventory key in station: target station inventory screen, requirements require station scene.
+- Inventory key in raid: target raid inventory screen, requirements require raid scene.
+- Social key: target social screen, behavior `Toggle`.
+- Escape/back key: target `Back`.
+
+Multiple bindings can use the same input action. They are evaluated in list order, and only the first successful binding is handled for that frame.
+
 ## Parameters And Payloads
 
 Use blackboard parameters when a screen/content entry should push simple typed values into state as it opens.

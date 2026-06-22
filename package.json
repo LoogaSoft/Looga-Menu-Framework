@@ -9,6 +9,7 @@
   "dependencies": {
     "com.loogasoft.loogablackboard": "1.0.0",
     "com.loogasoft.loogainspector": "1.0.0",
+    "com.unity.inputsystem": "1.0.0",
     "com.unity.ugui": "1.0.0"
   }
 }

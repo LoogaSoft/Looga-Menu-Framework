@@ -1,3 +1,4 @@
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,9 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuScreenDefinition _screen;
         [SerializeField] private LoogaMenuScreenDefinition _contentScreen;
         [SerializeField, HideInInspector] private string _contentEntryId;
+
+        [SerializeField] private bool _useActiveMenuRoot = true;
+        [HideIf(nameof(_useActiveMenuRoot))]
         [SerializeField] private LoogaMenuRoot _menuRoot;
 
         private Button _button;
@@ -38,7 +42,7 @@ namespace LoogaSoft.Menu
 
         private void Open()
         {
-            LoogaMenuRoot root = _menuRoot != null ? _menuRoot : LoogaMenuRoot.Active;
+            LoogaMenuRoot root = ResolveMenuRoot();
             if (root == null)
                 return;
 
@@ -52,6 +56,14 @@ namespace LoogaSoft.Menu
             {
                 root.Open(_screen, this);
             }
+        }
+
+        private LoogaMenuRoot ResolveMenuRoot()
+        {
+            if (!_useActiveMenuRoot && _menuRoot != null)
+                return _menuRoot;
+
+            return LoogaMenuRoot.Active;
         }
     }
 }

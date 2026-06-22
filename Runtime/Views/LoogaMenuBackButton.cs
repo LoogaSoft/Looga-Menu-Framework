@@ -1,3 +1,4 @@
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,6 +9,8 @@ namespace LoogaSoft.Menu
     [AddComponentMenu("LoogaSoft/Menu/Menu Back Button")]
     public sealed class LoogaMenuBackButton : MonoBehaviour
     {
+        [SerializeField] private bool _useActiveMenuRoot = true;
+        [HideIf(nameof(_useActiveMenuRoot))]
         [SerializeField] private LoogaMenuRoot _menuRoot;
 
         private Button _button;
@@ -28,8 +31,16 @@ namespace LoogaSoft.Menu
 
         private void Back()
         {
-            LoogaMenuRoot root = _menuRoot != null ? _menuRoot : LoogaMenuRoot.Active;
+            LoogaMenuRoot root = ResolveMenuRoot();
             root?.Back();
+        }
+
+        private LoogaMenuRoot ResolveMenuRoot()
+        {
+            if (!_useActiveMenuRoot && _menuRoot != null)
+                return _menuRoot;
+
+            return LoogaMenuRoot.Active;
         }
     }
 }
