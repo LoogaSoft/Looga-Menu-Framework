@@ -1,4 +1,3 @@
-using System.Collections;
 using LoogaSoft.Blackboard;
 using UnityEngine;
 
@@ -21,7 +20,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private CursorLockMode _closedLockMode = CursorLockMode.Locked;
         [SerializeField] private bool _closedCursorVisible;
 #if UNITY_EDITOR
-        [SerializeField] private bool _reapplyClosedCursorAtEndOfFrameInEditor = true;
+        [SerializeField] private bool _editorRelockOnClose = true;
 #endif
 
         private LoogaBlackboard _ownedBlackboard;
@@ -29,7 +28,8 @@ namespace LoogaSoft.Menu
         private ILoogaBlackboardWriter _blackboardWriter;
         private LoogaMenuManager _menuManager;
 #if UNITY_EDITOR
-        private Coroutine _editorCursorReapplyRoutine;
+        private const int EditorRelockFrameCount = 8;
+        private int _editorRelockFramesRemaining;
 #endif
 
         public static LoogaMenuRoot Active { get; private set; }
@@ -60,15 +60,26 @@ namespace LoogaSoft.Menu
 
             UnregisterStateProviders();
             ReleaseOwnedBlackboard();
-#if UNITY_EDITOR
-            StopEditorCursorReapply();
-#endif
 
             if (Active == this)
             {
                 Active = null;
             }
         }
+
+#if UNITY_EDITOR
+        private void LateUpdate()
+        {
+            if (_editorRelockFramesRemaining <= 0)
+                return;
+
+            _editorRelockFramesRemaining--;
+            if (!_controlCursor || _menuManager == null || _menuManager.OpenScreens.Count > 0)
+                return;
+
+            ApplyClosedCursorState();
+        }
+#endif
 
         public bool Open(LoogaMenuScreenDefinition screen, UnityEngine.Object requester = null, object payload = null)
         {
@@ -197,7 +208,7 @@ namespace LoogaSoft.Menu
             {
                 ApplyClosedCursorState();
 #if UNITY_EDITOR
-                QueueEditorClosedCursorReapply();
+                QueueEditorRelock();
 #endif
             }
         }
@@ -209,33 +220,12 @@ namespace LoogaSoft.Menu
         }
 
 #if UNITY_EDITOR
-        private void QueueEditorClosedCursorReapply()
+        private void QueueEditorRelock()
         {
-            if (!_reapplyClosedCursorAtEndOfFrameInEditor)
+            if (!_editorRelockOnClose)
                 return;
 
-            StopEditorCursorReapply();
-            _editorCursorReapplyRoutine = StartCoroutine(ReapplyClosedCursorAtEndOfFrame());
-        }
-
-        private void StopEditorCursorReapply()
-        {
-            if (_editorCursorReapplyRoutine == null)
-                return;
-
-            StopCoroutine(_editorCursorReapplyRoutine);
-            _editorCursorReapplyRoutine = null;
-        }
-
-        private IEnumerator ReapplyClosedCursorAtEndOfFrame()
-        {
-            yield return new WaitForEndOfFrame();
-            _editorCursorReapplyRoutine = null;
-
-            if (!_controlCursor || _menuManager == null || _menuManager.OpenScreens.Count > 0)
-                yield break;
-
-            ApplyClosedCursorState();
+            _editorRelockFramesRemaining = EditorRelockFrameCount;
         }
 #endif
     }
