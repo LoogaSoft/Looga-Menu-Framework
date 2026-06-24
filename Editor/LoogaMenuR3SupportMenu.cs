@@ -92,7 +92,7 @@ namespace LoogaSoft.Menu
         [MenuItem(MenuPath, true)]
         private static bool ValidateToggle()
         {
-            Menu.SetChecked(MenuPath, IsEnabled());
+            UnityEditor.Menu.SetChecked(MenuPath, IsEnabled());
             return true;
         }
 
