@@ -1,8 +1,5 @@
 using LoogaSoft.Blackboard;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace LoogaSoft.Menu
 {
@@ -22,19 +19,11 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _controlCursor = true;
         [SerializeField] private CursorLockMode _closedLockMode = CursorLockMode.Locked;
         [SerializeField] private bool _closedCursorVisible;
-#if UNITY_EDITOR
-        [SerializeField] private bool _editorRelockOnClose = true;
-#endif
 
         private LoogaBlackboard _ownedBlackboard;
         private ILoogaBlackboardReader _blackboardReader;
         private ILoogaBlackboardWriter _blackboardWriter;
         private LoogaMenuManager _menuManager;
-#if UNITY_EDITOR
-        private const int EditorRelockFrameCount = 8;
-        private int _editorRelockFramesRemaining;
-        private bool _editorRelockRegistered;
-#endif
 
         public static LoogaMenuRoot Active { get; private set; }
         public LoogaMenuManager MenuManager => _menuManager;
@@ -64,22 +53,12 @@ namespace LoogaSoft.Menu
 
             UnregisterStateProviders();
             ReleaseOwnedBlackboard();
-#if UNITY_EDITOR
-            StopEditorRelock();
-#endif
 
             if (Active == this)
             {
                 Active = null;
             }
         }
-
-#if UNITY_EDITOR
-        private void LateUpdate()
-        {
-            ApplyEditorRelockFrame();
-        }
-#endif
 
         public bool Open(LoogaMenuScreenDefinition screen, UnityEngine.Object requester = null, object payload = null)
         {
@@ -207,9 +186,6 @@ namespace LoogaSoft.Menu
             if (!state.HasOpenScreens)
             {
                 ApplyClosedCursorState();
-#if UNITY_EDITOR
-                QueueEditorRelock();
-#endif
             }
         }
 
@@ -218,45 +194,5 @@ namespace LoogaSoft.Menu
             Cursor.visible = _closedCursorVisible;
             Cursor.lockState = _closedLockMode;
         }
-
-#if UNITY_EDITOR
-        private void QueueEditorRelock()
-        {
-            if (!_editorRelockOnClose)
-                return;
-
-            _editorRelockFramesRemaining = EditorRelockFrameCount;
-            if (_editorRelockRegistered)
-                return;
-
-            EditorApplication.update += ApplyEditorRelockFrame;
-            _editorRelockRegistered = true;
-        }
-
-        private void ApplyEditorRelockFrame()
-        {
-            if (_editorRelockFramesRemaining <= 0)
-            {
-                StopEditorRelock();
-                return;
-            }
-
-            _editorRelockFramesRemaining--;
-            if (!_controlCursor || _menuManager == null || _menuManager.OpenScreens.Count > 0)
-                return;
-
-            ApplyClosedCursorState();
-        }
-
-        private void StopEditorRelock()
-        {
-            _editorRelockFramesRemaining = 0;
-            if (!_editorRelockRegistered)
-                return;
-
-            EditorApplication.update -= ApplyEditorRelockFrame;
-            _editorRelockRegistered = false;
-        }
-#endif
     }
 }
