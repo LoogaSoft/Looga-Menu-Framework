@@ -7,7 +7,6 @@ namespace LoogaSoft.Menu.Editor
     {
         private const string MenuPath = "LoogaSoft/Menu Framework/Enable R3 Support";
         private const string DefineSymbol = "LOOGA_MENU_R3_SUPPORT";
-        private const string RuntimeAsmdef = "LoogaSoft.Menu.Runtime";
 
         private static readonly string[] RequiredAssemblies =
         {
@@ -47,18 +46,12 @@ namespace LoogaSoft.Menu.Editor
 
         private static bool IsEnabled()
         {
-            return LoogaMenuOptionalSupportUtility.DefineIsEnabled(DefineSymbol)
-                && LoogaMenuOptionalSupportUtility.AsmdefReferences(RuntimeAsmdef, "R3.Unity")
-                && LoogaMenuOptionalSupportUtility.AsmdefReferences(RuntimeAsmdef, "ObservableCollections")
-                && LoogaMenuOptionalSupportUtility.AsmdefReferences(RuntimeAsmdef, "ObservableCollections.R3");
+            return LoogaMenuOptionalSupportUtility.DefineIsEnabled(DefineSymbol);
         }
 
         private static void Enable()
         {
             LoogaMenuOptionalSupportUtility.AddDefineSymbol(DefineSymbol);
-            if (!LoogaMenuOptionalSupportUtility.SetAsmdefReferences(RuntimeAsmdef, RequiredAssemblies, include: true, out string error))
-                EditorUtility.DisplayDialog("Unable To Update Menu Framework", error, "OK");
-
             AssetDatabase.Refresh();
             Debug.Log("Looga Menu Framework R3 support enabled.");
         }
@@ -66,9 +59,6 @@ namespace LoogaSoft.Menu.Editor
         private static void Disable()
         {
             LoogaMenuOptionalSupportUtility.RemoveDefineSymbol(DefineSymbol);
-            if (!LoogaMenuOptionalSupportUtility.SetAsmdefReferences(RuntimeAsmdef, RequiredAssemblies, include: false, out string error))
-                EditorUtility.DisplayDialog("Unable To Update Menu Framework", error, "OK");
-
             AssetDatabase.Refresh();
             Debug.Log("Looga Menu Framework R3 support disabled.");
         }
