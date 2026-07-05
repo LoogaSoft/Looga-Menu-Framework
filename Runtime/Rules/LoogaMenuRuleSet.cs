@@ -14,24 +14,62 @@ namespace LoogaSoft.Menu
         [LoogaBoxGroupEnd]
         [SerializeField] private LoogaBlackboardCondition[] _conditions = Array.Empty<LoogaBlackboardCondition>();
 
+        [NonSerialized] private LoogaBlackboardCondition _firstCondition;
+        [NonSerialized] private int _assignedConditionCount;
+        [NonSerialized] private bool _cacheReady;
+
         public LoogaMenuRuleMode Mode => _mode;
         public LoogaBlackboardCondition[] Conditions => _conditions;
+
+        private void OnEnable()
+        {
+            Warmup();
+        }
+
+        private void OnValidate()
+        {
+            Warmup();
+        }
+
+        public void Warmup()
+        {
+            _firstCondition = null;
+            _assignedConditionCount = 0;
+
+            if (_conditions != null)
+            {
+                for (int i = 0; i < _conditions.Length; i++)
+                {
+                    LoogaBlackboardCondition condition = _conditions[i];
+                    if (condition == null)
+                        continue;
+
+                    _firstCondition ??= condition;
+                    _assignedConditionCount++;
+                    condition.Warmup();
+                }
+            }
+
+            _cacheReady = true;
+        }
 
         public bool CanOpen(ILoogaBlackboardReader blackboard, out string failureReason)
         {
             failureReason = string.Empty;
 
-            if (_conditions == null || _conditions.Length == 0)
+            if (!_cacheReady)
+                Warmup();
+
+            if (_conditions == null || _assignedConditionCount == 0)
                 return true;
 
             bool anyPassed = false;
-            LoogaBlackboardCondition firstAssignedCondition = null;
-            foreach (LoogaBlackboardCondition condition in _conditions)
+            for (int i = 0; i < _conditions.Length; i++)
             {
+                LoogaBlackboardCondition condition = _conditions[i];
                 if (condition == null)
                     continue;
 
-                firstAssignedCondition ??= condition;
                 bool passed = condition.Evaluate(blackboard);
                 anyPassed |= passed;
 
@@ -44,9 +82,7 @@ namespace LoogaSoft.Menu
 
             if (_mode == LoogaMenuRuleMode.AnyCanPass && !anyPassed)
             {
-                failureReason = firstAssignedCondition != null
-                    ? firstAssignedCondition.FailureReason
-                    : "No rule condition passed.";
+                failureReason = _firstCondition != null ? _firstCondition.FailureReason : "No rule condition passed.";
                 return false;
             }
 

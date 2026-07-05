@@ -25,10 +25,15 @@ namespace LoogaSoft.Menu
         [SerializeField] private string _expectedString;
         [SerializeField] private string _failureReason;
 
+        [NonSerialized] private string _cachedFailureReason;
+
         public LoogaBlackboardKey Key => _key;
-        public string FailureReason => string.IsNullOrWhiteSpace(_failureReason)
-            ? _key != null ? $"{_key.DisplayName} condition failed." : "Blackboard condition failed."
-            : _failureReason;
+        public string FailureReason => _cachedFailureReason ?? ResolveFailureReason();
+
+        internal void Warmup()
+        {
+            _cachedFailureReason = ResolveFailureReason();
+        }
 
         public bool Evaluate(ILoogaBlackboardReader blackboard)
         {
@@ -46,6 +51,14 @@ namespace LoogaSoft.Menu
                 LoogaBlackboardValueType.String => CompareString(value.stringValue),
                 _ => false
             };
+        }
+
+        private string ResolveFailureReason()
+        {
+            if (!string.IsNullOrWhiteSpace(_failureReason))
+                return _failureReason;
+
+            return _key != null ? $"{_key.DisplayName} condition failed." : "Blackboard condition failed.";
         }
 
         private bool CompareBool(bool current)
