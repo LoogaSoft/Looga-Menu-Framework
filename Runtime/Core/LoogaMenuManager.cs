@@ -186,13 +186,16 @@ namespace LoogaSoft.Menu
 
         private void CloseAll(bool notify)
         {
-            LoogaMenuScreenDefinition[] screens = _openScreens.ToArray();
-            _openContent.Clear();
-            _openScreens.Clear();
+            LoogaMenuActiveContent[] contentEntries = _openContent.ToArray();
+            for (int i = contentEntries.Length - 1; i >= 0; i--)
+            {
+                CloseActiveContent(contentEntries[i], false);
+            }
 
+            LoogaMenuScreenDefinition[] screens = _openScreens.ToArray();
             for (int i = screens.Length - 1; i >= 0; i--)
             {
-                HideScreen(screens[i]);
+                CloseScreen(screens[i], false);
             }
 
             if (notify)
