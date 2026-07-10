@@ -19,7 +19,9 @@ namespace LoogaSoft.Menu.Editor
             Rect entryRect = new(position.x, screenRect.yMax + EditorGUIUtility.standardVerticalSpacing,
                 position.width, lineHeight);
 
-            EditorGUI.PropertyField(screenRect, screen);
+            EditorGUI.PropertyField(screenRect, screen, new GUIContent(
+                "Owning Screen",
+                "Screen definition that contains the content entry below."));
             LoogaMenuContentEntryPopupUtility.Draw(entryRect,
                 screen.objectReferenceValue as LoogaMenuScreenDefinition,
                 contentEntryId);

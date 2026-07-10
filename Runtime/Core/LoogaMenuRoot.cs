@@ -32,6 +32,21 @@ namespace LoogaSoft.Menu
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
         public LoogaMenuPanelDefinition DefaultActionBarPanel => _defaultActionBarPanel;
 
+        public void ApplyRuntimeDefaults(bool registerChildrenOnAwake,
+            LoogaMenuPanelDefinition defaultBackgroundPanel,
+            LoogaMenuPanelDefinition defaultActionBarPanel,
+            bool controlCursor,
+            CursorLockMode closedLockMode,
+            bool closedCursorVisible)
+        {
+            _registerChildrenOnAwake = registerChildrenOnAwake;
+            _defaultBackgroundPanel = defaultBackgroundPanel;
+            _defaultActionBarPanel = defaultActionBarPanel;
+            _controlCursor = controlCursor;
+            _closedLockMode = closedLockMode;
+            _closedCursorVisible = closedCursorVisible;
+        }
+
         private void Awake()
         {
             Active = this;
