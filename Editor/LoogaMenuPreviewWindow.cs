@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -56,16 +56,13 @@ namespace LoogaSoft.Menu.Editor
 
             foreach (LoogaMenuScreenDefinition screen in _screens)
             {
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    EditorGUILayout.LabelField(screen.DisplayName, EditorStyles.boldLabel);
+                string label = string.IsNullOrWhiteSpace(screen.DisplayName) ? screen.name : screen.DisplayName;
 
-                    using (new EditorGUI.DisabledScope(panels.Length == 0))
+                using (new EditorGUI.DisabledScope(panels.Length == 0))
+                {
+                    if (GUILayout.Button(label, GUILayout.Height(28f)))
                     {
-                        if (GUILayout.Button("Preview"))
-                        {
-                            Preview(screen);
-                        }
+                        Preview(screen);
                     }
                 }
             }
@@ -136,3 +133,4 @@ namespace LoogaSoft.Menu.Editor
 
     }
 }
+
