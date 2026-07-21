@@ -1,3 +1,4 @@
+using System;
 using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,8 +15,16 @@ namespace LoogaSoft.Menu
 
         private Canvas _canvas;
         private CanvasGroup _canvasGroup;
+        private bool _isCovered;
+        private bool _isVisible;
 
         public LoogaMenuPanelDefinition Panel => _panel;
+        public bool IsCovered => _isCovered;
+        public bool IsVisible => _isVisible;
+
+        public event Action<bool> CoveredChanged;
+        public event Action<bool> VisibilityChanged;
+
         public Canvas Canvas
         {
             get
@@ -64,6 +73,9 @@ namespace LoogaSoft.Menu
                 _canvasGroup.interactable = true;
                 _canvasGroup.blocksRaycasts = true;
             }
+
+            SetVisible(true);
+            SetCoveredState(false);
         }
 
         public void Hide()
@@ -81,26 +93,41 @@ namespace LoogaSoft.Menu
             {
                 _canvas.enabled = false;
             }
+
+            SetVisible(false);
+            SetCoveredState(false);
         }
 
         public void SetCovered(bool covered)
         {
             ResolveReferences(true);
 
-            if (_canvasGroup == null)
-                return;
-
-            if (!covered)
+            if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 1f;
-                _canvasGroup.interactable = true;
-                _canvasGroup.blocksRaycasts = true;
-                return;
+                _canvasGroup.interactable = !covered;
+                _canvasGroup.blocksRaycasts = !covered;
             }
 
-            _canvasGroup.alpha = 1f;
-            _canvasGroup.interactable = false;
-            _canvasGroup.blocksRaycasts = false;
+            SetCoveredState(covered);
+        }
+
+        private void SetCoveredState(bool covered)
+        {
+            if (_isCovered == covered)
+                return;
+
+            _isCovered = covered;
+            CoveredChanged?.Invoke(covered);
+        }
+
+        private void SetVisible(bool visible)
+        {
+            if (_isVisible == visible)
+                return;
+
+            _isVisible = visible;
+            VisibilityChanged?.Invoke(visible);
         }
 
         private void ResolveReferences()
