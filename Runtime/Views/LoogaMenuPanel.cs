@@ -96,6 +96,11 @@ namespace LoogaSoft.Menu
 
             SetVisible(false);
             SetCoveredState(false);
+
+            if (gameObject.activeSelf)
+            {
+                gameObject.SetActive(false);
+            }
         }
 
         public void SetCovered(bool covered)
