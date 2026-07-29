@@ -108,7 +108,38 @@ namespace LoogaSoft.Menu.Editor
                 ShowPanel(entry.Panel);
             }
 
+            ShowSingleContentEntry(screen);
             ShowPanel(screen.GetActionBarPanel(defaultActionBarPanel));
+        }
+
+        /// <summary>
+        /// A screen with one assigned content entry represents one complete,
+        /// unambiguous preview state. Include that content so editor previews
+        /// match the composition opened through LoogaMenuRoot.OpenContent.
+        /// </summary>
+        private static void ShowSingleContentEntry(LoogaMenuScreenDefinition screen)
+        {
+            LoogaMenuScreenContentEntry[] entries = screen.ContentEntries;
+            if (entries == null || entries.Length != 1 || entries[0] == null)
+                return;
+
+            LoogaMenuScreenContentEntry entry = entries[0];
+            if (entry.TargetType == LoogaMenuContentTargetType.Panel)
+            {
+                ShowPanel(entry.Panel);
+                return;
+            }
+
+            if (entry.Screen == null)
+                return;
+
+            foreach (LoogaMenuScreenPanelEntry nestedEntry in entry.Screen.DefaultPanels)
+            {
+                if (nestedEntry != null)
+                {
+                    ShowPanel(nestedEntry.Panel);
+                }
+            }
         }
 
         private static void ResetPreview(LoogaMenuPanel[] panels)
