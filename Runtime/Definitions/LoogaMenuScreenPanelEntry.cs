@@ -65,6 +65,28 @@ namespace LoogaSoft.Menu
         }
     }
 
+    /// <summary>
+    /// Defines one selectable section in a screen-owned navigation group.
+    /// Selecting the entry activates its panel composition while preserving the screen's default panels.
+    /// </summary>
+    [Serializable]
+    public sealed class LoogaMenuNavigationEntry
+    {
+        [SerializeField, HideInInspector] private string _stableId;
+        [SerializeField] private string _displayName;
+        [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
+
+        public string StableId => _stableId;
+        public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? "Navigation Entry" : _displayName;
+        public LoogaMenuScreenPanelEntry[] Panels => _panels;
+
+        internal void EnsureStableId()
+        {
+            if (string.IsNullOrWhiteSpace(_stableId))
+                _stableId = Guid.NewGuid().ToString("N");
+        }
+    }
+
     [Serializable]
     public sealed class LoogaMenuScreenContentReference
     {

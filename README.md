@@ -63,6 +63,8 @@ Screen definition fields:
 
 - `Default Panels`: panels that open immediately with the screen.
 - `Content Entries`: panels or screens that can be opened from this screen.
+- `Navigation`: selectable sections whose panel compositions are swapped without opening another screen.
+- `Active On Open`: whether the first navigation entry is active as soon as the screen opens.
 - `Background Panel Mode`: use root default, override, or none.
 - `Action Bar Panel Mode`: use root default, override, or none.
 - `Open Requirements`: optional rule set that must pass before opening.
@@ -93,6 +95,21 @@ Each content entry has:
 Content entries use hidden stable IDs. Designers see display names, while code stores stable IDs so references do not break if list order changes.
 
 Use `LoogaMenuScreenContentReference` for inspector-friendly references to a content entry.
+
+## Screen Navigation
+
+Use screen navigation for sibling sections such as `Buy` and `Sell`, or `Inventory` and
+`Progression`. Each navigation entry defines a display name and the reusable panels that should
+be visible while it is selected. The screen's default panels remain active, so one entry can also
+compose a panel that physically lives elsewhere in the UI hierarchy.
+
+The manager exposes the active entries and selection through `ActiveNavigationEntries`,
+`ActiveNavigationIndex`, `SelectNavigation`, and `SelectRelativeNavigation`. A project-specific
+navigation bar should bind its buttons to those APIs instead of maintaining a second authored
+button-to-panel list.
+
+Disable `Active On Open` when a screen must first show a selection page. Call
+`SetNavigationActive(true)` after that selection is made, then select the initial entry.
 
 ## Open Modes
 

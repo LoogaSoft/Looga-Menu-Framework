@@ -22,6 +22,15 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.Space(4f);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"), new GUIContent("Default Panels"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_contentEntries"), new GUIContent("Content Entries"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_navigationEntries"),
+                new GUIContent("Navigation"));
+            if (serializedObject.FindProperty("_navigationEntries").arraySize > 0)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("_activateNavigationOnOpen"),
+                    new GUIContent("Active On Open"));
+                EditorGUI.indentLevel--;
+            }
             DrawPanelReference(serializedObject.FindProperty("_backgroundPanelMode"),
                 serializedObject.FindProperty("_backgroundPanel"), "Background Panel");
             DrawPanelReference(serializedObject.FindProperty("_actionBarPanelMode"),
@@ -75,6 +84,25 @@ namespace LoogaSoft.Menu.Editor
                     continue;
 
                 ValidatePanel("Panel", entry.Panel, panels, ref hasIssue);
+            }
+
+            foreach (LoogaMenuNavigationEntry navigationEntry in screen.NavigationEntries)
+            {
+                if (navigationEntry == null)
+                    continue;
+
+                // Navigation entries are mutually exclusive, so the same reusable panel may
+                // intentionally appear in more than one entry. Only duplicates within the
+                // active composition are invalid.
+                HashSet<LoogaMenuPanelDefinition> navigationPanels = new(panels);
+                foreach (LoogaMenuScreenPanelEntry entry in navigationEntry.Panels)
+                {
+                    if (entry == null)
+                        continue;
+
+                    ValidatePanel($"Navigation '{navigationEntry.DisplayName}'", entry.Panel,
+                        navigationPanels, ref hasIssue);
+                }
             }
 
             ValidatePanel("Action Bar", screen.GetActionBarPanel(root.DefaultActionBarPanel), panels, ref hasIssue);
