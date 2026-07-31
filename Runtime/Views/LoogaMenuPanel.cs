@@ -11,6 +11,7 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuPanel : MonoBehaviour
     {
         [TooltipBox("Assign the panel definition this scene object represents. Screens enable this panel through that asset reference.")]
+        [ExposeScriptable(showScriptField: false, createButtonLabel: "New")]
         [SerializeField] private LoogaMenuPanelDefinition _panel;
 
         private Canvas _canvas;
@@ -33,6 +34,7 @@ namespace LoogaSoft.Menu
                 return _canvas;
             }
         }
+
         public CanvasGroup CanvasGroup
         {
             get
@@ -41,6 +43,7 @@ namespace LoogaSoft.Menu
                 return _canvasGroup;
             }
         }
+
         public RectTransform RectTransform => transform as RectTransform;
 
         private void Awake()

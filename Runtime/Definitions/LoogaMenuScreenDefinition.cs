@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace LoogaSoft.Menu
 {
@@ -21,10 +22,18 @@ namespace LoogaSoft.Menu
         [Header("Composition")]
         [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
         [SerializeField] private LoogaMenuScreenContentEntry[] _contentEntries = Array.Empty<LoogaMenuScreenContentEntry>();
+        [SerializeField]
+        [FormerlySerializedAs("_features")]
+        [Tooltip("Optional behaviors composed into this screen. A screen extension replaces a root default with the same extension ID.")]
+        private LoogaMenuExtensionDefinition[] _extensions = Array.Empty<LoogaMenuExtensionDefinition>();
+
+        [Header("Legacy Extension Compatibility")]
+        [Tooltip("Legacy navigation configuration. Prefer a Navigation Extension asset for new screens.")]
         [SerializeField] private LoogaMenuNavigationEntry[] _navigationEntries = Array.Empty<LoogaMenuNavigationEntry>();
         [SerializeField] private bool _activateNavigationOnOpen = true;
         [SerializeField] private LoogaMenuPanelReferenceMode _backgroundPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
         [SerializeField] private LoogaMenuPanelDefinition _backgroundPanel;
+        [Tooltip("Legacy action-bar configuration. Prefer an Action Bar Extension asset for new screens.")]
         [SerializeField] private LoogaMenuPanelReferenceMode _actionBarPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
         [SerializeField] private LoogaMenuPanelDefinition _actionBarPanel;
 
@@ -42,6 +51,7 @@ namespace LoogaSoft.Menu
         public LoogaMenuScreenPanelEntry[] DefaultPanels => _panels;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
         public LoogaMenuScreenContentEntry[] ContentEntries => _contentEntries;
+        public LoogaMenuExtensionDefinition[] Extensions => _extensions;
         public LoogaMenuNavigationEntry[] NavigationEntries => _navigationEntries;
         public bool ActivateNavigationOnOpen => _activateNavigationOnOpen;
         public LoogaMenuPanelReferenceMode BackgroundPanelMode => _backgroundPanelMode;
@@ -99,6 +109,7 @@ namespace LoogaSoft.Menu
                 entry?.RefreshDefaultDisplayName();
             }
 
+            _extensions ??= Array.Empty<LoogaMenuExtensionDefinition>();
             _navigationEntries ??= Array.Empty<LoogaMenuNavigationEntry>();
             foreach (LoogaMenuNavigationEntry entry in _navigationEntries)
             {

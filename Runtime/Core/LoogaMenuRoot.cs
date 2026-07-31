@@ -1,5 +1,7 @@
+using System;
 using LoogaSoft.Blackboard;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace LoogaSoft.Menu
 {
@@ -14,6 +16,12 @@ namespace LoogaSoft.Menu
         [Header("Default Panels")]
         [SerializeField] private LoogaMenuPanelDefinition _defaultBackgroundPanel;
         [SerializeField] private LoogaMenuPanelDefinition _defaultActionBarPanel;
+
+        [Header("Default Extensions")]
+        [SerializeField]
+        [FormerlySerializedAs("_defaultFeatures")]
+        [Tooltip("Optional behaviors inherited by screens unless a screen supplies an extension with the same ID.")]
+        private LoogaMenuExtensionDefinition[] _defaultExtensions = Array.Empty<LoogaMenuExtensionDefinition>();
 
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
@@ -31,6 +39,7 @@ namespace LoogaSoft.Menu
         public ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
         public LoogaMenuPanelDefinition DefaultActionBarPanel => _defaultActionBarPanel;
+        public LoogaMenuExtensionDefinition[] DefaultExtensions => _defaultExtensions;
 
         public void ApplyRuntimeDefaults(bool registerChildrenOnAwake,
             LoogaMenuPanelDefinition defaultBackgroundPanel,
@@ -47,11 +56,21 @@ namespace LoogaSoft.Menu
             _closedCursorVisible = closedCursorVisible;
         }
 
+        public void ApplyRuntimeExtensions(LoogaMenuExtensionDefinition[] defaultExtensions)
+        {
+            _defaultExtensions = defaultExtensions ?? Array.Empty<LoogaMenuExtensionDefinition>();
+        }
+
         private void Awake()
         {
             Active = this;
             ResolveBlackboard();
-            _menuManager = new LoogaMenuManager(_blackboardReader, _blackboardWriter, _defaultBackgroundPanel, _defaultActionBarPanel);
+            _menuManager = new LoogaMenuManager(
+                _blackboardReader,
+                _blackboardWriter,
+                _defaultBackgroundPanel,
+                _defaultActionBarPanel,
+                _defaultExtensions);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();

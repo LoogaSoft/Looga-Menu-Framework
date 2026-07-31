@@ -11,24 +11,26 @@ namespace LoogaSoft.Menu
         private readonly List<LoogaMenuScreenDefinition> _openScreens = new();
         private readonly List<LoogaMenuActiveContent> _openContent = new();
         private readonly List<LoogaMenuPanel> _visiblePanels = new();
-        private readonly Dictionary<LoogaMenuScreenDefinition, int> _navigationSelections = new();
-        private readonly HashSet<LoogaMenuScreenDefinition> _activeNavigation = new();
+        private readonly Dictionary<LoogaMenuScreenDefinition, List<ILoogaMenuExtensionRuntime>> _extensions = new();
         private readonly ILoogaBlackboardReader _blackboardReader;
         private readonly ILoogaBlackboardWriter _blackboardWriter;
         private readonly LoogaMenuPanelDefinition _defaultBackgroundPanel;
         private readonly LoogaMenuPanelDefinition _defaultActionBarPanel;
+        private readonly IReadOnlyList<LoogaMenuExtensionDefinition> _defaultExtensions;
 
         private ILoogaMenuTransitionHandler _transitionHandler;
         private ILoogaMenuAudioHandler _audioHandler;
 
         public LoogaMenuManager(ILoogaBlackboardReader blackboardReader, ILoogaBlackboardWriter blackboardWriter,
             LoogaMenuPanelDefinition defaultBackgroundPanel = null,
-            LoogaMenuPanelDefinition defaultActionBarPanel = null)
+            LoogaMenuPanelDefinition defaultActionBarPanel = null,
+            IReadOnlyList<LoogaMenuExtensionDefinition> defaultExtensions = null)
         {
             _blackboardReader = blackboardReader;
             _blackboardWriter = blackboardWriter;
             _defaultBackgroundPanel = defaultBackgroundPanel;
             _defaultActionBarPanel = defaultActionBarPanel;
+            _defaultExtensions = defaultExtensions ?? Array.Empty<LoogaMenuExtensionDefinition>();
         }
 
         public event Action<LoogaMenuState> StateChanged;
@@ -37,85 +39,47 @@ namespace LoogaSoft.Menu
         public LoogaMenuInputPolicy ActiveInputPolicy => _openScreens.Count > 0
             ? _openScreens[^1].InputPolicy
             : null;
-        public LoogaMenuScreenDefinition ActiveNavigationScreen => ResolveActiveNavigationScreen();
+        internal ILoogaBlackboardReader BlackboardReader => _blackboardReader;
+        internal ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
+
+        // Compatibility accessors keep existing navigation presenters working while authoring moves to extensions.
+        public LoogaMenuScreenDefinition ActiveNavigationScreen =>
+            TryGetActiveNavigation(out LoogaMenuScreenDefinition screen, out _) ? screen : null;
         public IReadOnlyList<LoogaMenuNavigationEntry> ActiveNavigationEntries =>
-            ActiveNavigationScreen != null
-                ? ActiveNavigationScreen.NavigationEntries
+            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
+                ? extension.Entries
                 : Array.Empty<LoogaMenuNavigationEntry>();
-        public int ActiveNavigationIndex => TryGetNavigationSelection(ActiveNavigationScreen, out int index)
-            ? index
-            : -1;
-        public bool IsNavigationActive => ActiveNavigationScreen != null
-            && _activeNavigation.Contains(ActiveNavigationScreen);
+        public int ActiveNavigationIndex =>
+            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
+                ? extension.SelectedIndex
+                : -1;
+        public bool IsNavigationActive =>
+            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension) && extension.IsActive;
 
         public bool SelectNavigation(int index)
         {
-            LoogaMenuScreenDefinition screen = ActiveNavigationScreen;
-            if (screen == null || !_activeNavigation.Contains(screen))
-                return false;
-
-            LoogaMenuNavigationEntry[] entries = screen.NavigationEntries;
-            if (entries == null || index < 0 || index >= entries.Length)
-                return false;
-
-            int previousIndex = ActiveNavigationIndex;
-            if (previousIndex == index)
-                return true;
-
-            LoogaMenuNavigationEntry previousEntry = GetNavigationEntry(screen, previousIndex);
-            _navigationSelections[screen] = index;
-
-            HideUnusedNavigationPanels(previousEntry);
-            RemoveNavigationParameters(previousEntry);
-            ShowNavigationEntry(screen, entries[index]);
-            ReapplyOpenScreenParameters();
-            RefreshCoveredViews();
-            StateChanged?.Invoke(CreateState());
-            return true;
+            return TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
+                && extension.Select(index);
         }
 
         public bool SelectRelativeNavigation(int direction)
         {
-            LoogaMenuScreenDefinition screen = ActiveNavigationScreen;
-            if (screen == null || direction == 0)
-                return false;
-
-            LoogaMenuNavigationEntry[] entries = screen.NavigationEntries;
-            if (entries == null || entries.Length == 0)
-                return false;
-
-            int currentIndex = Mathf.Max(0, ActiveNavigationIndex);
-            int nextIndex = (currentIndex + Math.Sign(direction) + entries.Length) % entries.Length;
-            return SelectNavigation(nextIndex);
+            return TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
+                && extension.SelectRelative(direction);
         }
 
         public bool SetNavigationActive(bool active)
         {
-            LoogaMenuScreenDefinition screen = ResolveTopNavigationScreen();
-            if (screen == null)
-                return false;
+            return TryGetTopExtension(out ILoogaMenuNavigationExtension extension) && extension.SetActive(active);
+        }
 
-            bool isActive = _activeNavigation.Contains(screen);
-            if (isActive == active)
-                return true;
-
-            if (active)
-            {
-                _activeNavigation.Add(screen);
-                ShowNavigationEntry(screen, GetNavigationEntry(screen, GetOrCreateNavigationSelection(screen)));
-            }
-            else
-            {
-                LoogaMenuNavigationEntry entry = GetNavigationEntry(screen, GetOrCreateNavigationSelection(screen));
-                _activeNavigation.Remove(screen);
-                HideUnusedNavigationPanels(entry);
-                RemoveNavigationParameters(entry);
-            }
-
-            ReapplyOpenScreenParameters();
-            RefreshCoveredViews();
-            StateChanged?.Invoke(CreateState());
-            return true;
+        /// <summary>
+        /// Finds the highest extension of the requested type in the open screen stack.
+        /// </summary>
+        public bool TryGetActiveExtension<TExtension>(out TExtension extension)
+            where TExtension : class
+        {
+            return TryGetTopExtension(out extension);
         }
 
         public void SetTransitionHandler(ILoogaMenuTransitionHandler transitionHandler)
@@ -235,7 +199,7 @@ namespace LoogaSoft.Menu
             }
 
             _openScreens.Add(screen);
-            InitializeNavigation(screen);
+            AttachExtensions(screen);
             ShowScreen(screen);
             RefreshCoveredViews();
             StateChanged?.Invoke(CreateState());
@@ -303,8 +267,7 @@ namespace LoogaSoft.Menu
                 TryShowPanel(entry.Panel, screen.MissingPanelBehavior, screen);
             }
 
-            ShowNavigationEntry(screen, GetActiveNavigationEntry(screen));
-            TryShowPanel(screen.GetActionBarPanel(_defaultActionBarPanel), LoogaMenuMissingPanelBehavior.Ignore, screen);
+            ShowExtensions(screen);
             LoogaMenuPanel[] panels = _visiblePanels.ToArray();
             _transitionHandler?.PlayOpen(screen, panels);
             _audioHandler?.PlayOpen(screen, panels);
@@ -330,7 +293,7 @@ namespace LoogaSoft.Menu
                 return false;
 
             _openScreens.Add(screen);
-            InitializeNavigation(screen);
+            AttachExtensions(screen);
             _openContent.Add(new LoogaMenuActiveContent(parentScreen, entry, null, screen));
             ShowScreen(screen);
             RefreshCoveredViews();
@@ -360,7 +323,7 @@ namespace LoogaSoft.Menu
                 {
                     HideUnusedPanels();
                     RemovePanelParameters(screen);
-                    ReleaseNavigation(screen);
+                    ReleaseExtensions(screen);
                     ReapplyOpenScreenParameters();
                 });
                 return;
@@ -368,7 +331,7 @@ namespace LoogaSoft.Menu
 
             HideUnusedPanels();
             RemovePanelParameters(screen);
-            ReleaseNavigation(screen);
+            ReleaseExtensions(screen);
             ReapplyOpenScreenParameters();
         }
 
@@ -446,8 +409,7 @@ namespace LoogaSoft.Menu
                 }
             }
 
-            AddNavigationPanels(screen, panels);
-            AddPanel(screen.GetActionBarPanel(_defaultActionBarPanel), panels);
+            CollectExtensionPanels(screen, panels);
             return panels.ToArray();
         }
 
@@ -458,8 +420,6 @@ namespace LoogaSoft.Menu
 
             List<LoogaMenuPanel> panels = new();
             LoogaMenuPanelDefinition backgroundPanel = screen.GetBackgroundPanel(_defaultBackgroundPanel);
-            LoogaMenuPanelDefinition actionBarPanel = screen.GetActionBarPanel(_defaultActionBarPanel);
-
             AddPanel(backgroundPanel, panels);
 
             foreach (LoogaMenuScreenPanelEntry entry in screen.DefaultPanels)
@@ -470,8 +430,7 @@ namespace LoogaSoft.Menu
                 AddPanel(entry.Panel, panels);
             }
 
-            AddNavigationPanels(screen, panels);
-            AddPanel(actionBarPanel, panels);
+            CollectExtensionPanels(screen, panels);
             return panels.ToArray();
         }
 
@@ -493,8 +452,7 @@ namespace LoogaSoft.Menu
 
             foreach (LoogaMenuScreenDefinition screen in _openScreens)
             {
-                if (screen.GetBackgroundPanel(_defaultBackgroundPanel) == panel
-                    || screen.GetActionBarPanel(_defaultActionBarPanel) == panel)
+                if (screen.GetBackgroundPanel(_defaultBackgroundPanel) == panel)
                     return true;
 
                 foreach (LoogaMenuScreenPanelEntry entry in screen.DefaultPanels)
@@ -503,8 +461,7 @@ namespace LoogaSoft.Menu
                         return true;
                 }
 
-                LoogaMenuNavigationEntry navigationEntry = GetActiveNavigationEntry(screen);
-                if (NavigationEntryUsesPanel(navigationEntry, panel))
+                if (ExtensionUsesPanel(screen, panel))
                     return true;
             }
 
@@ -562,7 +519,6 @@ namespace LoogaSoft.Menu
                 }
             }
 
-            RemoveNavigationParameters(GetActiveNavigationEntry(closedScreen));
         }
 
         private bool IsParameterUsedByOpenScreen(LoogaSoft.Blackboard.LoogaBlackboardKey key)
@@ -581,8 +537,7 @@ namespace LoogaSoft.Menu
                     }
                 }
 
-                LoogaMenuNavigationEntry navigationEntry = GetActiveNavigationEntry(screen);
-                if (NavigationEntryUsesParameter(navigationEntry, key))
+                if (ExtensionUsesParameter(screen, key))
                     return true;
             }
 
@@ -610,7 +565,7 @@ namespace LoogaSoft.Menu
                     }
                 }
 
-                ApplyNavigationParameters(GetActiveNavigationEntry(screen));
+                ReapplyExtensionParameters(screen);
             }
 
             foreach (LoogaMenuActiveContent content in _openContent)
@@ -711,191 +666,279 @@ namespace LoogaSoft.Menu
             }
         }
 
-        private void InitializeNavigation(LoogaMenuScreenDefinition screen)
+        private void AttachExtensions(LoogaMenuScreenDefinition screen)
         {
-            if (screen == null || screen.NavigationEntries == null || screen.NavigationEntries.Length == 0)
-                return;
+            List<LoogaMenuExtensionDefinition> definitions = ResolveExtensionDefinitions(screen);
+            List<ILoogaMenuExtensionRuntime> runtimes = new(definitions.Count + 2);
 
-            _navigationSelections[screen] = 0;
-            if (screen.ActivateNavigationOnOpen)
+            foreach (LoogaMenuExtensionDefinition definition in definitions)
             {
-                _activeNavigation.Add(screen);
-            }
-        }
-
-        private void ReleaseNavigation(LoogaMenuScreenDefinition screen)
-        {
-            _activeNavigation.Remove(screen);
-            _navigationSelections.Remove(screen);
-        }
-
-        private LoogaMenuScreenDefinition ResolveActiveNavigationScreen()
-        {
-            for (int i = _openScreens.Count - 1; i >= 0; i--)
-            {
-                LoogaMenuScreenDefinition screen = _openScreens[i];
-                if (_activeNavigation.Contains(screen)
-                    && screen.NavigationEntries != null
-                    && screen.NavigationEntries.Length > 0)
-                    return screen;
-            }
-
-            return null;
-        }
-
-        private LoogaMenuScreenDefinition ResolveTopNavigationScreen()
-        {
-            for (int i = _openScreens.Count - 1; i >= 0; i--)
-            {
-                LoogaMenuScreenDefinition screen = _openScreens[i];
-                if (screen.NavigationEntries != null && screen.NavigationEntries.Length > 0)
-                    return screen;
-            }
-
-            return null;
-        }
-
-        private bool TryGetNavigationSelection(LoogaMenuScreenDefinition screen, out int index)
-        {
-            if (screen != null && _navigationSelections.TryGetValue(screen, out index))
-                return true;
-
-            index = -1;
-            return false;
-        }
-
-        private int GetOrCreateNavigationSelection(LoogaMenuScreenDefinition screen)
-        {
-            if (TryGetNavigationSelection(screen, out int index))
-                return index;
-
-            _navigationSelections[screen] = 0;
-            return 0;
-        }
-
-        private LoogaMenuNavigationEntry GetActiveNavigationEntry(LoogaMenuScreenDefinition screen)
-        {
-            if (screen == null || !_activeNavigation.Contains(screen))
-                return null;
-
-            return GetNavigationEntry(screen, GetOrCreateNavigationSelection(screen));
-        }
-
-        private static LoogaMenuNavigationEntry GetNavigationEntry(LoogaMenuScreenDefinition screen, int index)
-        {
-            LoogaMenuNavigationEntry[] entries = screen != null ? screen.NavigationEntries : null;
-            return entries != null && index >= 0 && index < entries.Length ? entries[index] : null;
-        }
-
-        private void ShowNavigationEntry(LoogaMenuScreenDefinition screen, LoogaMenuNavigationEntry navigationEntry)
-        {
-            if (screen == null || navigationEntry == null)
-                return;
-
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
-            {
-                if (panelEntry == null)
+                if (definition == null || !definition.Enabled)
                     continue;
 
-                ApplyParameters(panelEntry.Parameters);
-                TryShowPanel(panelEntry.Panel, screen.MissingPanelBehavior, screen);
-            }
-        }
-
-        private void AddNavigationPanels(LoogaMenuScreenDefinition screen, List<LoogaMenuPanel> panels)
-        {
-            LoogaMenuNavigationEntry navigationEntry = GetActiveNavigationEntry(screen);
-            if (navigationEntry == null)
-                return;
-
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
-            {
-                if (panelEntry != null)
-                {
-                    AddPanel(panelEntry.Panel, panels);
-                }
-            }
-        }
-
-        private void HideUnusedNavigationPanels(LoogaMenuNavigationEntry navigationEntry)
-        {
-            if (navigationEntry == null)
-                return;
-
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
-            {
-                if (panelEntry?.Panel == null
-                    || !_panels.TryGetValue(panelEntry.Panel, out LoogaMenuPanel panel)
-                    || panel == null
-                    || IsPanelUsedByOpenScreen(panelEntry.Panel))
+                ILoogaMenuExtensionRuntime runtime = definition.CreateRuntime();
+                if (runtime == null)
                     continue;
 
-                panel.Hide();
+                runtime.Attach(new LoogaMenuExtensionContext(this, screen));
+                runtimes.Add(runtime);
             }
+
+            AddLegacyExtensionRuntimes(screen, definitions, runtimes);
+            _extensions[screen] = runtimes;
         }
 
-        private void ApplyNavigationParameters(LoogaMenuNavigationEntry navigationEntry)
+        private List<LoogaMenuExtensionDefinition> ResolveExtensionDefinitions(LoogaMenuScreenDefinition screen)
         {
-            if (navigationEntry == null)
+            List<LoogaMenuExtensionDefinition> definitions = new();
+            Dictionary<string, int> indicesById = new(StringComparer.Ordinal);
+
+            AddOrReplaceExtensionDefinitions(_defaultExtensions, definitions, indicesById);
+            AddOrReplaceExtensionDefinitions(screen.Extensions, definitions, indicesById);
+            return definitions;
+        }
+
+        private static void AddOrReplaceExtensionDefinitions(
+            IReadOnlyList<LoogaMenuExtensionDefinition> source,
+            List<LoogaMenuExtensionDefinition> destination,
+            Dictionary<string, int> indicesById)
+        {
+            if (source == null)
                 return;
 
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
+            for (int i = 0; i < source.Count; i++)
             {
-                if (panelEntry != null)
+                LoogaMenuExtensionDefinition definition = source[i];
+                if (definition == null)
+                    continue;
+
+                string extensionId = definition.ExtensionId;
+                if (string.IsNullOrWhiteSpace(extensionId))
+                    extensionId = definition.GetType().FullName;
+
+                if (indicesById.TryGetValue(extensionId, out int existingIndex))
                 {
-                    ApplyParameters(panelEntry.Parameters);
+                    destination[existingIndex] = definition;
+                    continue;
                 }
+
+                indicesById.Add(extensionId, destination.Count);
+                destination.Add(definition);
             }
         }
 
-        private void RemoveNavigationParameters(LoogaMenuNavigationEntry navigationEntry)
+        private void AddLegacyExtensionRuntimes(
+            LoogaMenuScreenDefinition screen,
+            IReadOnlyList<LoogaMenuExtensionDefinition> definitions,
+            List<ILoogaMenuExtensionRuntime> runtimes)
         {
-            if (navigationEntry == null)
+            bool hasNavigation = ContainsExtension(definitions, LoogaMenuNavigationExtension.Id);
+            if (!hasNavigation && screen.NavigationEntries.Length > 0)
+            {
+                LoogaMenuNavigationExtensionRuntime navigation = new(
+                    screen.NavigationEntries,
+                    screen.ActivateNavigationOnOpen);
+                navigation.Attach(new LoogaMenuExtensionContext(this, screen));
+                runtimes.Add(navigation);
+            }
+
+            bool hasActionBar = ContainsExtension(definitions, LoogaMenuActionBarExtension.Id);
+            if (hasActionBar)
                 return;
 
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
-            {
-                if (panelEntry != null)
-                {
-                    RemoveParameters(panelEntry.Parameters);
-                }
-            }
+            LoogaMenuPanelDefinition actionBarPanel = screen.GetActionBarPanel(_defaultActionBarPanel);
+            if (actionBarPanel == null)
+                return;
+
+            LoogaMenuActionBarExtensionRuntime actionBar = new(actionBarPanel);
+            actionBar.Attach(new LoogaMenuExtensionContext(this, screen));
+            runtimes.Add(actionBar);
         }
 
-        private static bool NavigationEntryUsesPanel(LoogaMenuNavigationEntry navigationEntry,
-            LoogaMenuPanelDefinition panel)
+        private static bool ContainsExtension(
+            IReadOnlyList<LoogaMenuExtensionDefinition> definitions,
+            string extensionId)
         {
-            if (navigationEntry == null)
-                return false;
-
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
+            for (int i = 0; i < definitions.Count; i++)
             {
-                if (panelEntry != null && panelEntry.Panel == panel)
+                LoogaMenuExtensionDefinition definition = definitions[i];
+                if (definition != null && definition.ExtensionId == extensionId)
                     return true;
             }
 
             return false;
         }
 
-        private static bool NavigationEntryUsesParameter(LoogaMenuNavigationEntry navigationEntry,
-            LoogaSoft.Blackboard.LoogaBlackboardKey key)
+        private void ShowExtensions(LoogaMenuScreenDefinition screen)
         {
-            if (navigationEntry == null)
+            if (!_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+                return;
+
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+            {
+                runtime.Show();
+            }
+        }
+
+        private void ReleaseExtensions(LoogaMenuScreenDefinition screen)
+        {
+            if (!_extensions.Remove(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+                return;
+
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+            {
+                runtime.Release();
+            }
+        }
+
+        private void CollectExtensionPanels(
+            LoogaMenuScreenDefinition screen,
+            List<LoogaMenuPanel> panels)
+        {
+            if (!_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+                return;
+
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+            {
+                runtime.CollectPanels(panels);
+            }
+        }
+
+        private bool ExtensionUsesPanel(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuPanelDefinition panel)
+        {
+            if (!_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
                 return false;
 
-            foreach (LoogaMenuScreenPanelEntry panelEntry in navigationEntry.Panels)
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
             {
-                if (panelEntry == null)
-                    continue;
-
-                foreach (LoogaMenuBlackboardParameter parameter in panelEntry.Parameters)
-                {
-                    if (parameter != null && parameter.Key == key)
-                        return true;
-                }
+                if (runtime.UsesPanel(panel))
+                    return true;
             }
 
             return false;
+        }
+
+        private bool ExtensionUsesParameter(
+            LoogaMenuScreenDefinition screen,
+            LoogaBlackboardKey key)
+        {
+            if (!_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+                return false;
+
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+            {
+                if (runtime.UsesParameter(key))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void ReapplyExtensionParameters(LoogaMenuScreenDefinition screen)
+        {
+            if (!_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+                return;
+
+            foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+            {
+                runtime.ReapplyParameters();
+            }
+        }
+
+        private bool TryGetActiveNavigation(
+            out LoogaMenuScreenDefinition screen,
+            out ILoogaMenuNavigationExtension extension)
+        {
+            for (int i = _openScreens.Count - 1; i >= 0; i--)
+            {
+                screen = _openScreens[i];
+                if (!TryGetExtension(screen, out extension) || !extension.IsActive)
+                    continue;
+
+                return true;
+            }
+
+            screen = null;
+            extension = null;
+            return false;
+        }
+
+        private bool TryGetTopExtension<TExtension>(out TExtension extension)
+            where TExtension : class
+        {
+            for (int i = _openScreens.Count - 1; i >= 0; i--)
+            {
+                if (TryGetExtension(_openScreens[i], out extension))
+                    return true;
+            }
+
+            extension = null;
+            return false;
+        }
+
+        private bool TryGetExtension<TExtension>(
+            LoogaMenuScreenDefinition screen,
+            out TExtension extension)
+            where TExtension : class
+        {
+            if (_extensions.TryGetValue(screen, out List<ILoogaMenuExtensionRuntime> runtimes))
+            {
+                foreach (ILoogaMenuExtensionRuntime runtime in runtimes)
+                {
+                    if (runtime is TExtension typedExtension)
+                    {
+                        extension = typedExtension;
+                        return true;
+                    }
+                }
+            }
+
+            extension = null;
+            return false;
+        }
+
+        internal LoogaMenuPanel ShowExtensionPanel(
+            LoogaMenuPanelDefinition panel,
+            LoogaMenuScreenDefinition screen)
+        {
+            return TryShowPanel(panel, screen.MissingPanelBehavior, screen);
+        }
+
+        internal void HideExtensionPanelWhenUnused(LoogaMenuPanelDefinition panel)
+        {
+            if (panel == null
+                || !_panels.TryGetValue(panel, out LoogaMenuPanel panelComponent)
+                || panelComponent == null
+                || IsPanelUsedByOpenScreen(panel))
+                return;
+
+            panelComponent.Hide();
+        }
+
+        internal void AddExtensionPanel(
+            LoogaMenuPanelDefinition panel,
+            List<LoogaMenuPanel> panels)
+        {
+            AddPanel(panel, panels);
+        }
+
+        internal void ApplyExtensionParameters(IEnumerable<LoogaMenuBlackboardParameter> parameters)
+        {
+            ApplyParameters(parameters);
+        }
+
+        internal void RemoveExtensionParameters(IEnumerable<LoogaMenuBlackboardParameter> parameters)
+        {
+            RemoveParameters(parameters);
+        }
+
+        internal void RefreshAfterExtensionChange()
+        {
+            ReapplyOpenScreenParameters();
+            RefreshCoveredViews();
+            StateChanged?.Invoke(CreateState());
         }
 
         private static void ReportMissingPanel(LoogaMenuScreenDefinition screen, LoogaMenuPanelDefinition panel,

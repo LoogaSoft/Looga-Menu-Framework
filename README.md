@@ -9,7 +9,8 @@ The package is intentionally project-agnostic. A game provides its own UI scene,
 - `LoogaMenuRoot` is the runtime entry point. Put one on the root object of the menu canvas.
 - `LoogaMenuPanelDefinition` is an asset identity for one reusable panel.
 - `LoogaMenuPanel` lives on the actual UGUI panel object and registers that panel with the active root.
-- `LoogaMenuScreenDefinition` describes a screen: default panels, optional content entries, requirements, background/action bar behavior, and input policy.
+- `LoogaMenuScreenDefinition` describes a screen: default panels, optional content entries, optional extensions, requirements, background behavior, and input policy.
+- `LoogaMenuExtensionDefinition` adds optional behavior to a screen without expanding the manager's core responsibilities.
 - `LoogaMenuScreenContentEntry` describes content that can open from a screen, such as a submenu panel or child screen.
 - `LoogaMenuRuleSet` gates opening through blackboard conditions.
 - `LoogaMenuInputPolicy` describes cursor behavior and which gameplay input categories should be blocked.
@@ -17,14 +18,15 @@ The package is intentionally project-agnostic. A game provides its own UI scene,
 ## Basic Setup
 
 1. Add `LoogaMenuRoot` to the main UI canvas/root object.
-2. Assign optional default background and action bar panel definitions on the root.
+2. Assign an optional default background and any default extension assets on the root.
 3. Create one `LoogaMenuPanelDefinition` asset for each reusable panel.
 4. Add `LoogaMenuPanel` to each panel object in the UI scene and assign its definition.
 5. Create `LoogaMenuScreenDefinition` assets for major menu flows.
 6. Add default panels to each screen definition.
 7. Add content entries for submenus or optional panels opened from that screen.
 8. Assign an input policy and open requirements as needed.
-9. Open screens with `LoogaMenuOpenButton`, `LoogaMenuScreenContentReference`, or code.
+9. Add navigation, action bars, or project-specific behavior through optional extension assets.
+10. Open screens with `LoogaMenuOpenButton`, `LoogaMenuScreenContentReference`, or code.
 
 Panel objects may start disabled in the UI scene. The menu root/manager will show and hide registered panels at runtime.
 
@@ -63,10 +65,8 @@ Screen definition fields:
 
 - `Default Panels`: panels that open immediately with the screen.
 - `Content Entries`: panels or screens that can be opened from this screen.
-- `Navigation`: selectable sections whose panel compositions are swapped without opening another screen.
-- `Active On Open`: whether the first navigation entry is active as soon as the screen opens.
+- `Extensions`: optional screen behaviors such as navigation and action-bar presentation.
 - `Background Panel Mode`: use root default, override, or none.
-- `Action Bar Panel Mode`: use root default, override, or none.
 - `Open Requirements`: optional rule set that must pass before opening.
 - `Input Policy`: cursor and gameplay input blocking behavior.
 - `Missing Panel Behavior`: what to do if a referenced panel is not registered.
@@ -96,6 +96,28 @@ Content entries use hidden stable IDs. Designers see display names, while code s
 
 Use `LoogaMenuScreenContentReference` for inspector-friendly references to a content entry.
 
+## Optional Screen Extensions
+
+Extensions keep specialized behavior out of `LoogaMenuManager`. Each extension definition creates
+one screen-scoped runtime instance when its screen opens. The runtime can show panels, contribute
+panels to transitions, use blackboard parameters, and expose a focused public contract to UI
+presenters.
+
+Assign reusable defaults on `LoogaMenuRoot`. An extension on a screen replaces an inherited extension
+with the same `ExtensionId`. Assign a disabled extension with the same ID when one screen needs to
+suppress an inherited default.
+
+Built-in extensions:
+
+- `LoogaMenuActionBarExtension`: presents an assigned panel while the screen is open.
+- `LoogaMenuNavigationExtension`: owns sibling navigation entries and their selected state.
+
+Projects can add extensions by deriving from `LoogaMenuExtensionDefinition` and returning an
+`ILoogaMenuExtensionRuntime`. The manager requires no changes for additional extension types.
+
+The legacy screen navigation and action-bar fields remain supported as compatibility adapters.
+Use extension assets for new authoring.
+
 ## Screen Navigation
 
 Use screen navigation for sibling sections such as `Buy` and `Sell`, or `Inventory` and
@@ -103,13 +125,14 @@ Use screen navigation for sibling sections such as `Buy` and `Sell`, or `Invento
 be visible while it is selected. The screen's default panels remain active, so one entry can also
 compose a panel that physically lives elsewhere in the UI hierarchy.
 
-The manager exposes the active entries and selection through `ActiveNavigationEntries`,
-`ActiveNavigationIndex`, `SelectNavigation`, and `SelectRelativeNavigation`. A project-specific
-navigation bar should bind its buttons to those APIs instead of maintaining a second authored
-button-to-panel list.
+Create a `LoogaMenuNavigationExtension`, configure its entries, and assign it to the screen's
+`Extensions` list. A project-specific navigation bar should call
+`TryGetActiveExtension<ILoogaMenuNavigationExtension>` and bind directly to that extension rather than
+maintaining a second button-to-panel list.
 
-Disable `Active On Open` when a screen must first show a selection page. Call
-`SetNavigationActive(true)` after that selection is made, then select the initial entry.
+Disable `Activate On Open` when a screen must first show a selection page. Retrieve the
+`ILoogaMenuNavigationExtension`, call `SetActive(true)` after selection, then select the initial
+entry.
 
 ## Open Modes
 
