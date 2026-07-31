@@ -16,7 +16,9 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuOpenButton : MonoBehaviour
     {
         [SerializeField] private LoogaMenuOpenButtonTarget _target = LoogaMenuOpenButtonTarget.Screen;
+        [ShowIf(nameof(_target), (int)LoogaMenuOpenButtonTarget.Screen)]
         [SerializeField] private LoogaMenuScreenDefinition _screen;
+        [ShowIf(nameof(_target), (int)LoogaMenuOpenButtonTarget.ScreenContentEntry)]
         [SerializeField] private LoogaMenuScreenDefinition _contentScreen;
         [SerializeField, HideInInspector] private string _contentEntryId;
 

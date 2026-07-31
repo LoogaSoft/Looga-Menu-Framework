@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LoogaSoft.Inspector.Editor;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -6,48 +7,17 @@ using UnityEngine;
 namespace LoogaSoft.Menu.Editor
 {
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
-    public sealed class LoogaMenuScreenDefinitionEditor : UnityEditor.Editor
+    public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
-        public override void OnInspectorGUI()
+        protected override void DrawBeforeProperties()
         {
-            serializedObject.Update();
-
-            LoogaMenuScreenDefinition screen = (LoogaMenuScreenDefinition)target;
             LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
                 "A screen composes reusable panels and evaluates rule assets before it opens.");
-
-            LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
-
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"), new GUIContent("Default Panels"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_contentEntries"), new GUIContent("Content Entries"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_extensions"), new GUIContent("Extensions"));
-            DrawPanelReference(serializedObject.FindProperty("_backgroundPanelMode"),
-                serializedObject.FindProperty("_backgroundPanel"), "Background Panel");
-
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"), new GUIContent("Open Requirements"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"),
-                new GUIContent("Missing Panel Behavior"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeAsGroupOnBack"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_closeExistingScreens"));
-            serializedObject.ApplyModifiedProperties();
-
-            DrawValidation(screen);
         }
 
-        private static void DrawPanelReference(SerializedProperty mode, SerializedProperty panel, string label)
+        protected override void DrawAfterProperties()
         {
-            EditorGUILayout.PropertyField(mode, new GUIContent($"{label} Source"));
-
-            if ((LoogaMenuPanelReferenceMode)mode.enumValueIndex != LoogaMenuPanelReferenceMode.Override)
-                return;
-
-            EditorGUI.indentLevel++;
-            EditorGUILayout.PropertyField(panel, new GUIContent(label));
-            EditorGUI.indentLevel--;
+            DrawValidation((LoogaMenuScreenDefinition)target);
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)

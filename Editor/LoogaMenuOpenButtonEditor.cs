@@ -1,3 +1,4 @@
+using LoogaSoft.Inspector.Editor;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -5,36 +6,38 @@ using UnityEngine;
 namespace LoogaSoft.Menu.Editor
 {
     [CustomEditor(typeof(LoogaMenuOpenButton))]
-    public sealed class LoogaMenuOpenButtonEditor : UnityEditor.Editor
+    public sealed class LoogaMenuOpenButtonEditor : LoogaEditor
     {
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
 
-            SerializedProperty target = serializedObject.FindProperty("_target");
-            EditorGUILayout.PropertyField(target);
+            SerializedProperty script = serializedObject.FindProperty("m_Script");
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(script);
 
-            if ((LoogaMenuOpenButtonTarget)target.enumValueIndex == LoogaMenuOpenButtonTarget.ScreenContentEntry)
+            EditorGUILayout.Space(1f);
+            DrawHeaderAttributes(target.GetType());
+
+            SerializedProperty targetProperty = DrawLoogaProperty("_target");
+
+            if ((LoogaMenuOpenButtonTarget)targetProperty.enumValueIndex == LoogaMenuOpenButtonTarget.ScreenContentEntry)
             {
-                SerializedProperty contentScreen = serializedObject.FindProperty("_contentScreen");
+                SerializedProperty contentScreen = DrawLoogaProperty("_contentScreen");
                 SerializedProperty contentEntryId = serializedObject.FindProperty("_contentEntryId");
-                EditorGUILayout.PropertyField(contentScreen, new GUIContent("Content Screen"));
                 LoogaMenuContentEntryPopupUtility.Draw(EditorGUILayout.GetControlRect(),
                     contentScreen.objectReferenceValue as LoogaMenuScreenDefinition,
                     contentEntryId);
             }
             else
             {
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("_screen"));
+                DrawLoogaProperty("_screen");
             }
 
-            SerializedProperty useActiveMenuRoot = serializedObject.FindProperty("_useActiveMenuRoot");
-            EditorGUILayout.PropertyField(useActiveMenuRoot, new GUIContent("Use Active Menu Root"));
+            SerializedProperty useActiveMenuRoot = DrawLoogaProperty("_useActiveMenuRoot");
 
             if (!useActiveMenuRoot.boolValue)
-            {
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("_menuRoot"), new GUIContent("Menu Root"));
-            }
+                DrawLoogaProperty("_menuRoot");
 
             serializedObject.ApplyModifiedProperties();
         }

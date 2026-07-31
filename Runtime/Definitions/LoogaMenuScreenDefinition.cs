@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -16,10 +17,12 @@ namespace LoogaSoft.Menu
     {
         [Header("Identity")]
         [SerializeField] private bool _useCustomDisplayName;
+        [ShowIf(nameof(_useCustomDisplayName))]
         [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
         [Header("Composition")]
+        [InspectorName("Default Panels")]
         [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
         [SerializeField] private LoogaMenuScreenContentEntry[] _contentEntries = Array.Empty<LoogaMenuScreenContentEntry>();
         [SerializeField]
@@ -28,10 +31,13 @@ namespace LoogaSoft.Menu
         private LoogaMenuExtensionDefinition[] _extensions = Array.Empty<LoogaMenuExtensionDefinition>();
 
         [Header("Background")]
+        [InspectorName("Background Panel Source")]
         [SerializeField] private LoogaMenuPanelReferenceMode _backgroundPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
+        [ShowIf(nameof(_backgroundPanelMode), (int)LoogaMenuPanelReferenceMode.Override)]
         [SerializeField] private LoogaMenuPanelDefinition _backgroundPanel;
 
         [Header("Behavior")]
+        [InspectorName("Open Requirements")]
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuInputPolicy _inputPolicy;
         [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;

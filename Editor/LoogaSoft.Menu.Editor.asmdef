@@ -3,6 +3,7 @@
     "rootNamespace": "LoogaSoft",
     "references": [
         "LoogaSoft.Blackboard.Runtime",
+        "LoogaSoft.Inspector.Editor",
         "LoogaSoft.Menu.Runtime"
     ],
     "includePlatforms": [
