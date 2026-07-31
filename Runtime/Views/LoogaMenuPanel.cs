@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace LoogaSoft.Menu
 {
@@ -15,7 +14,6 @@ namespace LoogaSoft.Menu
         [ExposeScriptable(showScriptField: false, createButtonLabel: "New")]
         [SerializeField] private LoogaMenuPanelDefinition _panel;
 
-        private Canvas _canvas;
         private CanvasGroup _canvasGroup;
         private readonly List<ILoogaMenuActionProvider> _actionProviders = new();
         private bool _actionProvidersDirty = true;
@@ -29,15 +27,6 @@ namespace LoogaSoft.Menu
         public event Action<bool> CoveredChanged;
         public event Action<bool> VisibilityChanged;
         public event Action ActionsChanged;
-
-        public Canvas Canvas
-        {
-            get
-            {
-                ResolveReferences();
-                return _canvas;
-            }
-        }
 
         public CanvasGroup CanvasGroup
         {
@@ -77,11 +66,6 @@ namespace LoogaSoft.Menu
                 gameObject.SetActive(true);
             }
 
-            if (_canvas != null)
-            {
-                _canvas.enabled = true;
-            }
-
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 1f;
@@ -95,20 +79,6 @@ namespace LoogaSoft.Menu
 
         public void Hide()
         {
-            ResolveReferences(true);
-
-            if (_canvasGroup != null)
-            {
-                _canvasGroup.alpha = 0f;
-                _canvasGroup.interactable = false;
-                _canvasGroup.blocksRaycasts = false;
-            }
-
-            if (_canvas != null)
-            {
-                _canvas.enabled = false;
-            }
-
             SetVisible(false);
             SetCoveredState(false);
 
@@ -180,11 +150,6 @@ namespace LoogaSoft.Menu
 
         private void ResolveReferences(bool logMissingComponents)
         {
-            if (_canvas == null)
-            {
-                _canvas = GetComponent<Canvas>();
-            }
-
             if (_canvasGroup == null)
             {
                 _canvasGroup = GetComponent<CanvasGroup>();
@@ -195,10 +160,6 @@ namespace LoogaSoft.Menu
                 Debug.LogWarning($"{name} is missing a {nameof(CanvasGroup)}. Add one to the menu panel object.", this);
             }
 
-            if (logMissingComponents && _canvas != null && _canvas.GetComponent<GraphicRaycaster>() == null)
-            {
-                Debug.LogWarning($"{_canvas.name} is missing a {nameof(GraphicRaycaster)}. Add one if this panel needs pointer interaction.", _canvas);
-            }
         }
 
         private void CacheActionProviders()

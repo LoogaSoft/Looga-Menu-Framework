@@ -7,21 +7,29 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
+        private enum PreviewTab
+        {
+            Screens,
+            Panels
+        }
+
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
-        private Vector2 _scroll;
+        private readonly List<LoogaMenuPanelDefinition> _panelDefinitions = new();
+        private readonly Vector2[] _scrollPositions = new Vector2[2];
+        private PreviewTab _tab;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
         public static void Open()
         {
             LoogaMenuPreviewWindow window = GetWindow<LoogaMenuPreviewWindow>("Menu Preview");
             window.minSize = new Vector2(360f, 260f);
-            window.RefreshScreens();
+            window.RefreshDefinitions();
             window.Show();
         }
 
         private void OnFocus()
         {
-            RefreshScreens();
+            RefreshDefinitions();
         }
 
         private void OnGUI()
@@ -42,47 +50,106 @@ namespace LoogaSoft.Menu.Editor
 
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(72f)))
                 {
-                    RefreshScreens();
+                    RefreshDefinitions();
                 }
             }
 
+            _tab = (PreviewTab)GUILayout.Toolbar((int)_tab, new[] { "Screens", "Panels" });
+
             if (panels.Length == 0)
             {
-                EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuPanel objects to preview menu screens.",
+                EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuPanel objects to preview definitions.",
                     MessageType.Warning);
             }
 
-            _scroll = EditorGUILayout.BeginScrollView(_scroll);
+            int tabIndex = (int)_tab;
+            _scrollPositions[tabIndex] = EditorGUILayout.BeginScrollView(_scrollPositions[tabIndex]);
 
-            foreach (LoogaMenuScreenDefinition screen in _screens)
+            if (_tab == PreviewTab.Screens)
             {
-                string label = string.IsNullOrWhiteSpace(screen.DisplayName) ? screen.name : screen.DisplayName;
-
-                using (new EditorGUI.DisabledScope(panels.Length == 0))
+                foreach (LoogaMenuScreenDefinition screen in _screens)
                 {
-                    if (GUILayout.Button(label, GUILayout.Height(28f)))
-                    {
-                        Preview(screen);
-                    }
+                    DrawDefinitionRow(screen, screen.DisplayName, panels.Length > 0, () => Preview(screen));
+                }
+            }
+            else
+            {
+                foreach (LoogaMenuPanelDefinition panel in _panelDefinitions)
+                {
+                    DrawDefinitionRow(panel, panel.DisplayName, panels.Length > 0, () => Preview(panel));
                 }
             }
 
             EditorGUILayout.EndScrollView();
         }
 
-        private void RefreshScreens()
+        private void RefreshDefinitions()
         {
             _screens.Clear();
+            _panelDefinitions.Clear();
 
-            foreach (string guid in AssetDatabase.FindAssets("t:LoogaMenuScreenDefinition"))
+            LoadDefinitions(_screens);
+            LoadDefinitions(_panelDefinitions);
+            _screens.Sort(CompareDefinitions);
+            _panelDefinitions.Sort(CompareDefinitions);
+        }
+
+        private static void DrawDefinitionRow<T>(T definition, string displayName, bool canPreview,
+            System.Action preview) where T : ScriptableObject
+        {
+            if (definition == null)
+                return;
+
+            string label = string.IsNullOrWhiteSpace(displayName) ? definition.name : displayName;
+
+            using (new EditorGUILayout.HorizontalScope())
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                LoogaMenuScreenDefinition screen = AssetDatabase.LoadAssetAtPath<LoogaMenuScreenDefinition>(path);
-                if (screen != null)
+                using (new EditorGUI.DisabledScope(!canPreview))
                 {
-                    _screens.Add(screen);
+                    if (GUILayout.Button(label, GUILayout.Height(28f)))
+                    {
+                        preview?.Invoke();
+                    }
+                }
+
+                if (GUILayout.Button(new GUIContent("Ping", "Ping this definition in the Project window."),
+                        EditorStyles.miniButtonLeft, GUILayout.Width(44f), GUILayout.Height(28f)))
+                {
+                    EditorGUIUtility.PingObject(definition);
+                }
+
+                if (GUILayout.Button(new GUIContent("Open", "Select and open this definition."),
+                        EditorStyles.miniButtonRight, GUILayout.Width(44f), GUILayout.Height(28f)))
+                {
+                    OpenDefinition(definition);
                 }
             }
+        }
+
+        private static void LoadDefinitions<T>(List<T> definitions) where T : ScriptableObject
+        {
+            foreach (string guid in AssetDatabase.FindAssets($"t:{typeof(T).Name}"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                T definition = AssetDatabase.LoadAssetAtPath<T>(path);
+                if (definition != null)
+                {
+                    definitions.Add(definition);
+                }
+            }
+        }
+
+        private static int CompareDefinitions<T>(T left, T right) where T : Object
+        {
+            return string.Compare(left != null ? left.name : string.Empty,
+                right != null ? right.name : string.Empty, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void OpenDefinition(Object definition)
+        {
+            Selection.activeObject = definition;
+            EditorGUIUtility.PingObject(definition);
+            AssetDatabase.OpenAsset(definition);
         }
 
         private static void Preview(LoogaMenuScreenDefinition screen)
@@ -109,6 +176,13 @@ namespace LoogaSoft.Menu.Editor
 
             ShowSingleContentEntry(screen);
             ShowExtensions(root, screen);
+        }
+
+        private static void Preview(LoogaMenuPanelDefinition definition)
+        {
+            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+            ResetPreview(panels);
+            ShowPanel(definition);
         }
 
         /// <summary>
