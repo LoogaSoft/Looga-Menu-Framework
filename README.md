@@ -134,6 +134,57 @@ Disable `Activate On Open` when a screen must first show a selection page. Retri
 `ILoogaMenuNavigationExtension`, call `SetActive(true)` after selection, then select the initial
 entry.
 
+## Action Bars
+
+Action bars are optional screen extensions. They provide a common Back command and collect
+contextual commands from the panels currently composed by the active screen.
+
+1. Create a `LoogaMenuActionBarExtension` asset.
+2. Assign the panel that contains the action-bar visuals.
+3. Assign an optional Input System action for Back and configure its label/order.
+4. Add the extension to a screen or to the root's default extensions.
+5. Add `LoogaMenuActionBarView` to the action-bar panel and assign its item parent and template.
+6. Implement `ILoogaMenuActionProvider` on components that contribute contextual commands.
+
+Providers are discovered within their owning `LoogaMenuPanel`, cached, and queried only while that
+panel is relevant. Dynamic providers should call `LoogaMenuPanel.NotifyActionsChanged()` after their
+available actions or enabled state changes.
+
+```csharp
+using System.Collections.Generic;
+using LoogaSoft.Menu;
+using UnityEngine;
+
+public sealed class InventoryActionProvider : MonoBehaviour, ILoogaMenuActionProvider
+{
+    [SerializeField] private LoogaMenuPanel _panel;
+
+    public void CollectMenuActions(List<LoogaMenuActionDescriptor> actions)
+    {
+        actions.Add(new LoogaMenuActionDescriptor(
+            "inventory.split",
+            "Split Stack",
+            "Ctrl+RMB",
+            SplitHoveredStack,
+            CanSplitHoveredStack(),
+            20));
+    }
+
+    private void OnHoveredStackChanged()
+    {
+        _panel.NotifyActionsChanged();
+    }
+
+    private bool CanSplitHoveredStack() => true;
+    private void SplitHoveredStack() { }
+}
+```
+
+`LoogaMenuActionDescriptor` can also receive an `InputActionReference`. Its display binding is
+resolved from the active Input System binding, with a fallback string for unavailable bindings.
+Projects with authored presentation or transition behavior can implement their own view and bind to
+`ILoogaMenuActionBarExtension` instead of using `LoogaMenuActionBarView`.
+
 ## Open Modes
 
 `Replace`

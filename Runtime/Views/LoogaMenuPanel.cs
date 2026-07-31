@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,6 +17,8 @@ namespace LoogaSoft.Menu
 
         private Canvas _canvas;
         private CanvasGroup _canvasGroup;
+        private readonly List<ILoogaMenuActionProvider> _actionProviders = new();
+        private bool _actionProvidersDirty = true;
         private bool _isCovered;
         private bool _isVisible;
 
@@ -25,6 +28,7 @@ namespace LoogaSoft.Menu
 
         public event Action<bool> CoveredChanged;
         public event Action<bool> VisibilityChanged;
+        public event Action ActionsChanged;
 
         public Canvas Canvas
         {
@@ -53,12 +57,20 @@ namespace LoogaSoft.Menu
 
         private void OnValidate()
         {
+            _actionProvidersDirty = true;
             ResolveReferences(false);
+        }
+
+        private void OnTransformChildrenChanged()
+        {
+            _actionProvidersDirty = true;
+            ActionsChanged?.Invoke();
         }
 
         public void Show()
         {
             ResolveReferences(true);
+            CacheActionProviders();
 
             if (!gameObject.activeSelf)
             {
@@ -120,6 +132,29 @@ namespace LoogaSoft.Menu
             SetCoveredState(covered);
         }
 
+        /// <summary>
+        /// Collects actions from providers contained by this panel without searching the scene.
+        /// </summary>
+        public void CollectMenuActions(List<LoogaMenuActionDescriptor> actions)
+        {
+            if (actions == null)
+                return;
+
+            CacheActionProviders();
+            foreach (ILoogaMenuActionProvider provider in _actionProviders)
+            {
+                provider?.CollectMenuActions(actions);
+            }
+        }
+
+        /// <summary>
+        /// Requests that the active action bar recollect this panel's contextual actions.
+        /// </summary>
+        public void NotifyActionsChanged()
+        {
+            ActionsChanged?.Invoke();
+        }
+
         private void SetCoveredState(bool covered)
         {
             if (_isCovered == covered)
@@ -164,6 +199,23 @@ namespace LoogaSoft.Menu
             {
                 Debug.LogWarning($"{_canvas.name} is missing a {nameof(GraphicRaycaster)}. Add one if this panel needs pointer interaction.", _canvas);
             }
+        }
+
+        private void CacheActionProviders()
+        {
+            if (!_actionProvidersDirty)
+                return;
+
+            _actionProviders.Clear();
+            foreach (MonoBehaviour behaviour in GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour is ILoogaMenuActionProvider provider)
+                {
+                    _actionProviders.Add(provider);
+                }
+            }
+
+            _actionProvidersDirty = false;
         }
     }
 }

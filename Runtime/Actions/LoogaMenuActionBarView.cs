@@ -1,0 +1,199 @@
+using System.Collections.Generic;
+using LoogaSoft.Inspector.Runtime;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace LoogaSoft.Menu
+{
+    /// <summary>
+    /// Presents the actions collected by the highest active action-bar extension.
+    /// </summary>
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(CanvasGroup))]
+    [AddComponentMenu("LoogaSoft/Menu/Action Bar View")]
+    public sealed class LoogaMenuActionBarView : MonoBehaviour
+    {
+        [Header("Root")]
+        [SerializeField] private bool _useActiveMenuRoot = true;
+        [HideIf(nameof(_useActiveMenuRoot))]
+        [SerializeField] private LoogaMenuRoot _menuRoot;
+
+        [Header("Presentation")]
+        [SerializeField] private RectTransform _actionParent;
+        [SerializeField] private LoogaMenuActionBarItemView _itemTemplate;
+        [SerializeField] private bool _hideWhenEmpty = true;
+
+        private readonly List<LoogaMenuActionBarItemView> _items = new();
+        private LoogaMenuManager _menuManager;
+        private ILoogaMenuActionBarExtension _extension;
+        private CanvasGroup _canvasGroup;
+
+        private void Awake()
+        {
+            ResolveReferences();
+            HideTemplate();
+        }
+
+        private void OnEnable()
+        {
+            ResolveReferences();
+            HideTemplate();
+            TrySubscribe();
+            Refresh();
+        }
+
+        private void OnDisable()
+        {
+            Unsubscribe();
+        }
+
+        private void Update()
+        {
+            if (_menuManager == null)
+            {
+                TrySubscribe();
+            }
+        }
+
+        public void Refresh()
+        {
+            BindActiveExtension();
+            if (_extension != null)
+            {
+                _extension.RefreshActions();
+                return;
+            }
+
+            Render();
+        }
+
+        private void TrySubscribe()
+        {
+            LoogaMenuRoot root = ResolveRoot();
+            LoogaMenuManager manager = root != null ? root.MenuManager : null;
+            if (manager == null || manager == _menuManager)
+                return;
+
+            Unsubscribe();
+            _menuManager = manager;
+            _menuManager.StateChanged += OnMenuStateChanged;
+            Refresh();
+        }
+
+        private void Unsubscribe()
+        {
+            if (_menuManager != null)
+            {
+                _menuManager.StateChanged -= OnMenuStateChanged;
+            }
+
+            if (_extension != null)
+            {
+                _extension.ActionsChanged -= Render;
+            }
+
+            _extension = null;
+            _menuManager = null;
+        }
+
+        private void BindActiveExtension()
+        {
+            ILoogaMenuActionBarExtension next = null;
+            _menuManager?.TryGetActiveExtension(out next);
+            if (ReferenceEquals(_extension, next))
+                return;
+
+            if (_extension != null)
+            {
+                _extension.ActionsChanged -= Render;
+            }
+
+            _extension = next;
+            if (_extension != null)
+            {
+                _extension.ActionsChanged += Render;
+            }
+        }
+
+        private void OnMenuStateChanged(LoogaMenuState state)
+        {
+            Refresh();
+        }
+
+        private void Render()
+        {
+            IReadOnlyList<LoogaMenuActionDescriptor> actions = _extension?.Actions;
+            int count = actions?.Count ?? 0;
+            EnsureItemCapacity(count);
+
+            for (int i = 0; i < _items.Count; i++)
+            {
+                bool active = i < count;
+                _items[i].gameObject.SetActive(active);
+                if (active)
+                {
+                    _items[i].Bind(actions[i]);
+                }
+            }
+
+            if (_hideWhenEmpty && _canvasGroup != null)
+            {
+                bool visible = count > 0;
+                _canvasGroup.alpha = visible ? 1f : 0f;
+                _canvasGroup.interactable = visible;
+                _canvasGroup.blocksRaycasts = visible;
+            }
+
+            RebuildLayout();
+        }
+
+        private void EnsureItemCapacity(int count)
+        {
+            if (_itemTemplate == null || _actionParent == null)
+                return;
+
+            while (_items.Count < count)
+            {
+                LoogaMenuActionBarItemView item = Instantiate(_itemTemplate, _actionParent);
+                item.name = _itemTemplate.name;
+                item.gameObject.SetActive(false);
+                _items.Add(item);
+            }
+        }
+
+        private LoogaMenuRoot ResolveRoot()
+        {
+            if (!_useActiveMenuRoot && _menuRoot != null)
+                return _menuRoot;
+
+            return LoogaMenuRoot.Active;
+        }
+
+        private void ResolveReferences()
+        {
+            _actionParent ??= transform as RectTransform;
+            _canvasGroup ??= GetComponent<CanvasGroup>();
+            if (_itemTemplate == null && _actionParent != null)
+            {
+                _itemTemplate = _actionParent.GetComponentInChildren<LoogaMenuActionBarItemView>(true);
+            }
+        }
+
+        private void HideTemplate()
+        {
+            if (_itemTemplate != null)
+            {
+                _itemTemplate.gameObject.SetActive(false);
+            }
+        }
+
+        private void RebuildLayout()
+        {
+            if (_actionParent == null)
+                return;
+
+            LayoutRebuilder.MarkLayoutForRebuild(_actionParent);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_actionParent);
+        }
+    }
+}

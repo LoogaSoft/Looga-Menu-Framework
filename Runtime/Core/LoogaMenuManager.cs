@@ -36,6 +36,7 @@ namespace LoogaSoft.Menu
         public event Action<LoogaMenuState> StateChanged;
 
         public IReadOnlyList<LoogaMenuScreenDefinition> OpenScreens => _openScreens;
+        public IReadOnlyList<LoogaMenuPanel> VisiblePanels => _visiblePanels;
         public LoogaMenuInputPolicy ActiveInputPolicy => _openScreens.Count > 0
             ? _openScreens[^1].InputPolicy
             : null;
@@ -442,6 +443,21 @@ namespace LoogaSoft.Menu
                 && !panels.Contains(panelComponent))
             {
                 panels.Add(panelComponent);
+            }
+        }
+
+        internal void CollectVisiblePanels(List<LoogaMenuPanel> panels, bool includeCovered)
+        {
+            if (panels == null)
+                return;
+
+            panels.Clear();
+            foreach (LoogaMenuPanel panel in _panels.Values)
+            {
+                if (panel == null || !panel.IsVisible || (!includeCovered && panel.IsCovered))
+                    continue;
+
+                panels.Add(panel);
             }
         }
 

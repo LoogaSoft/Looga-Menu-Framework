@@ -83,5 +83,15 @@ namespace LoogaSoft.Menu
         {
             _manager.RefreshAfterExtensionChange();
         }
+
+        public bool Back()
+        {
+            return _manager.Back();
+        }
+
+        public void CollectVisiblePanels(List<LoogaMenuPanel> panels, bool includeCovered)
+        {
+            _manager.CollectVisiblePanels(panels, includeCovered);
+        }
     }
 }
