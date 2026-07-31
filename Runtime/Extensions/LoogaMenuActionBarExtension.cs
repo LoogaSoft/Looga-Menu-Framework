@@ -72,11 +72,6 @@ namespace LoogaSoft.Menu
         private LoogaMenuExtensionContext _context;
         private Action _backAction;
 
-        public LoogaMenuActionBarExtensionRuntime(LoogaMenuPanelDefinition panel)
-            : this(panel, true, "Back", null, "Esc", -1000, true)
-        {
-        }
-
         public LoogaMenuActionBarExtensionRuntime(
             LoogaMenuPanelDefinition panel,
             bool showBackAction,

@@ -15,7 +15,6 @@ namespace LoogaSoft.Menu
         private readonly ILoogaBlackboardReader _blackboardReader;
         private readonly ILoogaBlackboardWriter _blackboardWriter;
         private readonly LoogaMenuPanelDefinition _defaultBackgroundPanel;
-        private readonly LoogaMenuPanelDefinition _defaultActionBarPanel;
         private readonly IReadOnlyList<LoogaMenuExtensionDefinition> _defaultExtensions;
 
         private ILoogaMenuTransitionHandler _transitionHandler;
@@ -23,13 +22,11 @@ namespace LoogaSoft.Menu
 
         public LoogaMenuManager(ILoogaBlackboardReader blackboardReader, ILoogaBlackboardWriter blackboardWriter,
             LoogaMenuPanelDefinition defaultBackgroundPanel = null,
-            LoogaMenuPanelDefinition defaultActionBarPanel = null,
             IReadOnlyList<LoogaMenuExtensionDefinition> defaultExtensions = null)
         {
             _blackboardReader = blackboardReader;
             _blackboardWriter = blackboardWriter;
             _defaultBackgroundPanel = defaultBackgroundPanel;
-            _defaultActionBarPanel = defaultActionBarPanel;
             _defaultExtensions = defaultExtensions ?? Array.Empty<LoogaMenuExtensionDefinition>();
         }
 
@@ -42,37 +39,6 @@ namespace LoogaSoft.Menu
             : null;
         internal ILoogaBlackboardReader BlackboardReader => _blackboardReader;
         internal ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
-
-        // Compatibility accessors keep existing navigation presenters working while authoring moves to extensions.
-        public LoogaMenuScreenDefinition ActiveNavigationScreen =>
-            TryGetActiveNavigation(out LoogaMenuScreenDefinition screen, out _) ? screen : null;
-        public IReadOnlyList<LoogaMenuNavigationEntry> ActiveNavigationEntries =>
-            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
-                ? extension.Entries
-                : Array.Empty<LoogaMenuNavigationEntry>();
-        public int ActiveNavigationIndex =>
-            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
-                ? extension.SelectedIndex
-                : -1;
-        public bool IsNavigationActive =>
-            TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension) && extension.IsActive;
-
-        public bool SelectNavigation(int index)
-        {
-            return TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
-                && extension.Select(index);
-        }
-
-        public bool SelectRelativeNavigation(int direction)
-        {
-            return TryGetActiveNavigation(out _, out ILoogaMenuNavigationExtension extension)
-                && extension.SelectRelative(direction);
-        }
-
-        public bool SetNavigationActive(bool active)
-        {
-            return TryGetTopExtension(out ILoogaMenuNavigationExtension extension) && extension.SetActive(active);
-        }
 
         /// <summary>
         /// Finds the highest extension of the requested type in the open screen stack.
@@ -685,7 +651,7 @@ namespace LoogaSoft.Menu
         private void AttachExtensions(LoogaMenuScreenDefinition screen)
         {
             List<LoogaMenuExtensionDefinition> definitions = ResolveExtensionDefinitions(screen);
-            List<ILoogaMenuExtensionRuntime> runtimes = new(definitions.Count + 2);
+            List<ILoogaMenuExtensionRuntime> runtimes = new(definitions.Count);
 
             foreach (LoogaMenuExtensionDefinition definition in definitions)
             {
@@ -700,7 +666,6 @@ namespace LoogaSoft.Menu
                 runtimes.Add(runtime);
             }
 
-            AddLegacyExtensionRuntimes(screen, definitions, runtimes);
             _extensions[screen] = runtimes;
         }
 
@@ -741,48 +706,6 @@ namespace LoogaSoft.Menu
                 indicesById.Add(extensionId, destination.Count);
                 destination.Add(definition);
             }
-        }
-
-        private void AddLegacyExtensionRuntimes(
-            LoogaMenuScreenDefinition screen,
-            IReadOnlyList<LoogaMenuExtensionDefinition> definitions,
-            List<ILoogaMenuExtensionRuntime> runtimes)
-        {
-            bool hasNavigation = ContainsExtension(definitions, LoogaMenuNavigationExtension.Id);
-            if (!hasNavigation && screen.NavigationEntries.Length > 0)
-            {
-                LoogaMenuNavigationExtensionRuntime navigation = new(
-                    screen.NavigationEntries,
-                    screen.ActivateNavigationOnOpen);
-                navigation.Attach(new LoogaMenuExtensionContext(this, screen));
-                runtimes.Add(navigation);
-            }
-
-            bool hasActionBar = ContainsExtension(definitions, LoogaMenuActionBarExtension.Id);
-            if (hasActionBar)
-                return;
-
-            LoogaMenuPanelDefinition actionBarPanel = screen.GetActionBarPanel(_defaultActionBarPanel);
-            if (actionBarPanel == null)
-                return;
-
-            LoogaMenuActionBarExtensionRuntime actionBar = new(actionBarPanel);
-            actionBar.Attach(new LoogaMenuExtensionContext(this, screen));
-            runtimes.Add(actionBar);
-        }
-
-        private static bool ContainsExtension(
-            IReadOnlyList<LoogaMenuExtensionDefinition> definitions,
-            string extensionId)
-        {
-            for (int i = 0; i < definitions.Count; i++)
-            {
-                LoogaMenuExtensionDefinition definition = definitions[i];
-                if (definition != null && definition.ExtensionId == extensionId)
-                    return true;
-            }
-
-            return false;
         }
 
         private void ShowExtensions(LoogaMenuScreenDefinition screen)
@@ -861,24 +784,6 @@ namespace LoogaSoft.Menu
             {
                 runtime.ReapplyParameters();
             }
-        }
-
-        private bool TryGetActiveNavigation(
-            out LoogaMenuScreenDefinition screen,
-            out ILoogaMenuNavigationExtension extension)
-        {
-            for (int i = _openScreens.Count - 1; i >= 0; i--)
-            {
-                screen = _openScreens[i];
-                if (!TryGetExtension(screen, out extension) || !extension.IsActive)
-                    continue;
-
-                return true;
-            }
-
-            screen = null;
-            extension = null;
-            return false;
         }
 
         private bool TryGetTopExtension<TExtension>(out TExtension extension)

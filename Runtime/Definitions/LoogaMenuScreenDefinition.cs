@@ -27,15 +27,9 @@ namespace LoogaSoft.Menu
         [Tooltip("Optional behaviors composed into this screen. A screen extension replaces a root default with the same extension ID.")]
         private LoogaMenuExtensionDefinition[] _extensions = Array.Empty<LoogaMenuExtensionDefinition>();
 
-        [Header("Legacy Extension Compatibility")]
-        [Tooltip("Legacy navigation configuration. Prefer a Navigation Extension asset for new screens.")]
-        [SerializeField] private LoogaMenuNavigationEntry[] _navigationEntries = Array.Empty<LoogaMenuNavigationEntry>();
-        [SerializeField] private bool _activateNavigationOnOpen = true;
+        [Header("Background")]
         [SerializeField] private LoogaMenuPanelReferenceMode _backgroundPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
         [SerializeField] private LoogaMenuPanelDefinition _backgroundPanel;
-        [Tooltip("Legacy action-bar configuration. Prefer an Action Bar Extension asset for new screens.")]
-        [SerializeField] private LoogaMenuPanelReferenceMode _actionBarPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
-        [SerializeField] private LoogaMenuPanelDefinition _actionBarPanel;
 
         [Header("Behavior")]
         [SerializeField] private LoogaMenuRuleSet _rules;
@@ -52,12 +46,8 @@ namespace LoogaSoft.Menu
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
         public LoogaMenuScreenContentEntry[] ContentEntries => _contentEntries;
         public LoogaMenuExtensionDefinition[] Extensions => _extensions;
-        public LoogaMenuNavigationEntry[] NavigationEntries => _navigationEntries;
-        public bool ActivateNavigationOnOpen => _activateNavigationOnOpen;
         public LoogaMenuPanelReferenceMode BackgroundPanelMode => _backgroundPanelMode;
         public LoogaMenuPanelDefinition BackgroundPanelOverride => _backgroundPanel;
-        public LoogaMenuPanelReferenceMode ActionBarPanelMode => _actionBarPanelMode;
-        public LoogaMenuPanelDefinition ActionBarPanelOverride => _actionBarPanel;
         public LoogaMenuRuleSet Rules => _rules;
         public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
@@ -67,11 +57,6 @@ namespace LoogaSoft.Menu
         public LoogaMenuPanelDefinition GetBackgroundPanel(LoogaMenuPanelDefinition rootDefault)
         {
             return ResolveOptionalPanel(_backgroundPanelMode, _backgroundPanel, rootDefault);
-        }
-
-        public LoogaMenuPanelDefinition GetActionBarPanel(LoogaMenuPanelDefinition rootDefault)
-        {
-            return ResolveOptionalPanel(_actionBarPanelMode, _actionBarPanel, rootDefault);
         }
 
         /// <summary>
@@ -110,11 +95,6 @@ namespace LoogaSoft.Menu
             }
 
             _extensions ??= Array.Empty<LoogaMenuExtensionDefinition>();
-            _navigationEntries ??= Array.Empty<LoogaMenuNavigationEntry>();
-            foreach (LoogaMenuNavigationEntry entry in _navigationEntries)
-            {
-                entry?.EnsureStableId();
-            }
         }
 
         private static LoogaMenuPanelDefinition ResolveOptionalPanel(LoogaMenuPanelReferenceMode mode,

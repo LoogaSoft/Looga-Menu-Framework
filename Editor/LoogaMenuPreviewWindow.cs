@@ -90,7 +90,6 @@ namespace LoogaSoft.Menu.Editor
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
             LoogaMenuPanelDefinition defaultBackgroundPanel = root != null ? root.DefaultBackgroundPanel : null;
-            LoogaMenuPanelDefinition defaultActionBarPanel = root != null ? root.DefaultActionBarPanel : null;
 
             foreach (LoogaMenuPanel panel in panels)
             {
@@ -109,7 +108,43 @@ namespace LoogaSoft.Menu.Editor
             }
 
             ShowSingleContentEntry(screen);
-            ShowPanel(screen.GetActionBarPanel(defaultActionBarPanel));
+            ShowExtensions(root, screen);
+        }
+
+        /// <summary>
+        /// Previews the initial panel composition contributed by effective extensions.
+        /// Screen extensions replace matching root defaults by extension ID.
+        /// </summary>
+        private static void ShowExtensions(LoogaMenuRoot root, LoogaMenuScreenDefinition screen)
+        {
+            List<LoogaMenuExtensionDefinition> extensions = new();
+            LoogaMenuEditorUtility.ResolveExtensions(root, screen, extensions);
+
+            foreach (LoogaMenuExtensionDefinition extension in extensions)
+            {
+                if (extension == null || !extension.Enabled)
+                    continue;
+
+                if (extension is LoogaMenuActionBarExtension actionBar)
+                {
+                    ShowPanel(actionBar.Panel);
+                    continue;
+                }
+
+                if (extension is not LoogaMenuNavigationExtension navigation
+                    || !navigation.ActivateOnOpen
+                    || navigation.Entries.Length == 0
+                    || navigation.Entries[0] == null)
+                    continue;
+
+                foreach (LoogaMenuScreenPanelEntry entry in navigation.Entries[0].Panels)
+                {
+                    if (entry != null)
+                    {
+                        ShowPanel(entry.Panel);
+                    }
+                }
+            }
         }
 
         /// <summary>

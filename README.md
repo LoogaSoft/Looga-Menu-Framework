@@ -115,8 +115,8 @@ Built-in extensions:
 Projects can add extensions by deriving from `LoogaMenuExtensionDefinition` and returning an
 `ILoogaMenuExtensionRuntime`. The manager requires no changes for additional extension types.
 
-The legacy screen navigation and action-bar fields remain supported as compatibility adapters.
-Use extension assets for new authoring.
+Navigation and action bars are authored exclusively through extension assets. Shared behavior belongs
+in the root default-extension list; screen-specific behavior belongs in that screen's extension list.
 
 ## Screen Navigation
 
