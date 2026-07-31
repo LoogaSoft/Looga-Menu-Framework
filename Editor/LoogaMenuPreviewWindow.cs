@@ -101,27 +101,24 @@ namespace LoogaSoft.Menu.Editor
                 return;
 
             string label = string.IsNullOrWhiteSpace(displayName) ? definition.name : displayName;
+            GUIContent content = new(label, "Left-click to preview. Right-click to open and ping the definition.");
+            Rect buttonRect = GUILayoutUtility.GetRect(content, GUI.skin.button, GUILayout.Height(28f));
+            Event currentEvent = Event.current;
 
-            using (new EditorGUILayout.HorizontalScope())
+            if (currentEvent.type == EventType.MouseDown
+                && currentEvent.button == 1
+                && buttonRect.Contains(currentEvent.mousePosition))
             {
-                using (new EditorGUI.DisabledScope(!canPreview))
-                {
-                    if (GUILayout.Button(label, GUILayout.Height(28f)))
-                    {
-                        preview?.Invoke();
-                    }
-                }
+                OpenDefinition(definition);
+                currentEvent.Use();
+                return;
+            }
 
-                if (GUILayout.Button(new GUIContent("Ping", "Ping this definition in the Project window."),
-                        EditorStyles.miniButtonLeft, GUILayout.Width(44f), GUILayout.Height(28f)))
+            using (new EditorGUI.DisabledScope(!canPreview))
+            {
+                if (GUI.Button(buttonRect, content))
                 {
-                    EditorGUIUtility.PingObject(definition);
-                }
-
-                if (GUILayout.Button(new GUIContent("Open", "Select and open this definition."),
-                        EditorStyles.miniButtonRight, GUILayout.Width(44f), GUILayout.Height(28f)))
-                {
-                    OpenDefinition(definition);
+                    preview?.Invoke();
                 }
             }
         }
