@@ -66,6 +66,13 @@ namespace LoogaSoft.Menu
                 gameObject.SetActive(true);
             }
 
+            // Visibility is owned by the panel GameObject. Restore an authored Canvas that
+            // may still be disabled by scenes saved with the former multi-state workflow.
+            if (TryGetComponent(out Canvas canvas) && !canvas.enabled)
+            {
+                canvas.enabled = true;
+            }
+
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 1f;
