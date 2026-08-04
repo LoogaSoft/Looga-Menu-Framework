@@ -3,9 +3,8 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
 {
-    internal static class LoogaMenuR3SupportMenu
+    internal static class LoogaMenuR3SupportProvider
     {
-        private const string MenuPath = "LoogaSoft/Menu Framework/Enable R3 Support";
         private const string DefineSymbol = "LOOGA_MENU_R3_SUPPORT";
 
         private static readonly string[] RequiredAssemblies =
@@ -16,37 +15,29 @@ namespace LoogaSoft.Menu.Editor
             "ObservableCollections.R3"
         };
 
-        [MenuItem(MenuPath, priority = 201)]
-        private static void ToggleR3Support()
-        {
-            if (IsEnabled())
-            {
-                Disable();
-                return;
-            }
+        public static string ProviderId => "looga-menu-framework.r3";
+        public static string PackageName => "Looga Menu Framework";
+        public static string IntegrationName => "R3";
+        public static string Description => "Adds reactive menu state and collection adapters through R3.";
 
-            if (!LoogaMenuOptionalSupportUtility.AllAssembliesAreAvailable(RequiredAssemblies, out string missingAssemblies))
-            {
-                EditorUtility.DisplayDialog(
-                    "Reactive Dependencies Not Found",
-                    "Install R3, R3.Unity, ObservableCollections, and ObservableCollections.R3 before enabling Looga Menu Framework R3 support.\n\nMissing: " + missingAssemblies,
-                    "OK");
-                return;
-            }
-
-            Enable();
-        }
-
-        [MenuItem(MenuPath, true)]
-        private static bool ValidateToggle()
-        {
-            UnityEditor.Menu.SetChecked(MenuPath, IsEnabled());
-            return true;
-        }
-
-        private static bool IsEnabled()
+        public static bool IsEnabled()
         {
             return LoogaMenuOptionalSupportUtility.DefineIsEnabled(DefineSymbol);
+        }
+
+        public static string GetUnavailableReason()
+        {
+            return LoogaMenuOptionalSupportUtility.AllAssembliesAreAvailable(RequiredAssemblies, out string missingAssemblies)
+                ? string.Empty
+                : "Install R3 and ObservableCollections support. Missing assemblies: " + missingAssemblies;
+        }
+
+        public static void SetEnabled(bool enabled)
+        {
+            if (enabled)
+                Enable();
+            else
+                Disable();
         }
 
         private static void Enable()
