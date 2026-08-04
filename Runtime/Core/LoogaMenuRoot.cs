@@ -5,6 +5,7 @@ using UnityEngine.Serialization;
 
 namespace LoogaSoft.Menu
 {
+    /// <summary>Owns menu state, panel registration, extensions, and cursor policy.</summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("LoogaSoft/Menu/Menu Root")]
     public sealed class LoogaMenuRoot : MonoBehaviour
@@ -32,13 +33,25 @@ namespace LoogaSoft.Menu
         private ILoogaBlackboardWriter _blackboardWriter;
         private LoogaMenuManager _menuManager;
 
+        /// <summary>Gets the active menu root.</summary>
         public static LoogaMenuRoot Active { get; private set; }
+
+        /// <summary>Gets the menu manager owned by this root.</summary>
         public LoogaMenuManager MenuManager => _menuManager;
+
+        /// <summary>Gets read access to the active menu blackboard.</summary>
         public ILoogaBlackboardReader BlackboardReader => _blackboardReader;
+
+        /// <summary>Gets write access to the active menu blackboard.</summary>
         public ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
+
+        /// <summary>Gets the default background panel.</summary>
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
+
+        /// <summary>Gets the extensions inherited by screens without matching overrides.</summary>
         public LoogaMenuExtensionDefinition[] DefaultExtensions => _defaultExtensions;
 
+        /// <summary>Applies project-level menu behavior at runtime.</summary>
         public void ApplyRuntimeDefaults(bool registerChildrenOnAwake,
             LoogaMenuPanelDefinition defaultBackgroundPanel,
             bool controlCursor,
@@ -52,9 +65,16 @@ namespace LoogaSoft.Menu
             _closedCursorVisible = closedCursorVisible;
         }
 
+        /// <summary>Applies project-level menu extensions at runtime.</summary>
         public void ApplyRuntimeExtensions(LoogaMenuExtensionDefinition[] defaultExtensions)
         {
             _defaultExtensions = defaultExtensions ?? Array.Empty<LoogaMenuExtensionDefinition>();
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Active = null;
         }
 
         private void Awake()
@@ -89,11 +109,13 @@ namespace LoogaSoft.Menu
             }
         }
 
+        /// <summary>Opens a screen for the specified requester and payload.</summary>
         public bool Open(LoogaMenuScreenDefinition screen, UnityEngine.Object requester = null, object payload = null)
         {
             return _menuManager != null && _menuManager.Open(screen, requester, payload);
         }
 
+        /// <summary>Opens one content entry on its owning screen.</summary>
         public bool OpenContent(LoogaMenuScreenContentEntry entry, UnityEngine.Object requester = null, object payload = null)
         {
             return _menuManager != null && _menuManager.OpenContent(entry, requester, payload);
@@ -108,16 +130,19 @@ namespace LoogaSoft.Menu
             return _menuManager != null && _menuManager.OpenContent(screen, contentEntryId, requester, payload);
         }
 
+        /// <summary>Returns to the previous menu state.</summary>
         public bool Back()
         {
             return _menuManager != null && _menuManager.Back();
         }
 
+        /// <summary>Closes all open screens and extension panels.</summary>
         public void CloseAll()
         {
             _menuManager?.CloseAll();
         }
 
+        /// <summary>Registers a scene panel with this root.</summary>
         public void RegisterPanel(LoogaMenuPanel panel)
         {
             _menuManager?.RegisterPanel(panel);
@@ -131,7 +156,9 @@ namespace LoogaSoft.Menu
             }
 
             if (!_registerChildrenOnAwake)
+            {
                 return;
+            }
 
             foreach (LoogaMenuPanel panel in GetComponentsInChildren<LoogaMenuPanel>(true))
             {
@@ -178,7 +205,9 @@ namespace LoogaSoft.Menu
         private void ReleaseOwnedBlackboard()
         {
             if (_ownedBlackboard == null)
+            {
                 return;
+            }
 
             LoogaBlackboardRegistry.ClearActive(_ownedBlackboard);
             _ownedBlackboard = null;
@@ -203,7 +232,9 @@ namespace LoogaSoft.Menu
         private void OnMenuStateChanged(LoogaMenuState state)
         {
             if (!_controlCursor)
+            {
                 return;
+            }
 
             if (state.HasOpenScreens && state.ShowsCursor)
             {

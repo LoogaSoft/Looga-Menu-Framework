@@ -13,6 +13,7 @@ namespace LoogaSoft.Menu
         [Tooltip("Disabled extensions override a matching inherited extension without creating runtime behavior.")]
         private bool _enabled = true;
 
+        /// <summary>Gets whether this definition creates runtime behavior.</summary>
         public bool Enabled => _enabled;
 
         /// <summary>
@@ -20,6 +21,7 @@ namespace LoogaSoft.Menu
         /// </summary>
         public virtual string ExtensionId => GetType().FullName;
 
+        /// <summary>Creates runtime behavior for one open screen.</summary>
         public abstract ILoogaMenuExtensionRuntime CreateRuntime();
     }
 
@@ -28,12 +30,25 @@ namespace LoogaSoft.Menu
     /// </summary>
     public interface ILoogaMenuExtensionRuntime
     {
+        /// <summary>Attaches the runtime to its owning screen.</summary>
         void Attach(LoogaMenuExtensionContext context);
+
+        /// <summary>Shows the extension and applies its initial state.</summary>
         void Show();
+
+        /// <summary>Adds panels that currently belong to the extension.</summary>
         void CollectPanels(List<LoogaMenuPanel> panels);
+
+        /// <summary>Returns whether the extension currently uses a panel.</summary>
         bool UsesPanel(LoogaMenuPanelDefinition panel);
+
+        /// <summary>Returns whether the extension currently uses a blackboard key.</summary>
         bool UsesParameter(LoogaBlackboardKey key);
+
+        /// <summary>Applies the current blackboard parameters again.</summary>
         void ReapplyParameters();
+
+        /// <summary>Releases panel, parameter, and event ownership.</summary>
         void Release();
     }
 
