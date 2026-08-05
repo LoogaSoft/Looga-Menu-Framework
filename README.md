@@ -22,10 +22,10 @@ The package is intentionally project-agnostic. A game provides its own UI scene,
 3. Create one `LoogaMenuPanelDefinition` asset for each reusable panel.
 4. Add `LoogaMenuPanel` to each panel object in the UI scene and assign its definition.
 5. Create `LoogaMenuScreenDefinition` assets for major menu flows.
-6. Add default panels to each screen definition.
-7. Add content entries for submenus or optional panels opened from that screen.
-8. Assign an input policy and open requirements as needed.
-9. Add navigation, action bars, or project-specific behavior through optional extension assets.
+6. Create one or more owned screen configurations and select the default configuration.
+7. Add panels and extension overrides to each configuration.
+8. Add content entries for submenus or optional panels opened from that screen.
+9. Assign an input policy and open requirements as needed.
 10. Open screens with `LoogaMenuOpenButton`, `LoogaMenuScreenContentReference`, or code.
 
 Panel objects may start disabled in the UI scene. The menu root/manager will show and hide registered panels at runtime.
@@ -53,7 +53,8 @@ Panel definitions contain display metadata and per-panel toggles such as skippin
 
 ## Screens
 
-A screen is a composed menu state. It can activate several default panels at once.
+A screen defines one menu flow. An owned `LoogaMenuScreenConfiguration` defines each supported
+layout of that flow. Each screen has an explicit default configuration.
 
 Examples:
 
@@ -63,7 +64,8 @@ Examples:
 
 Screen definition fields:
 
-- `Default Panels`: panels that open immediately with the screen.
+- `Configurations`: owned layouts that can be opened or previewed independently.
+- `Default Configuration`: the layout used when the caller does not select one.
 - `Content Entries`: panels or screens that can be opened from this screen.
 - `Extensions`: optional screen behaviors such as navigation and action-bar presentation.
 - `Background Panel Mode`: use root default, override, or none.
@@ -72,6 +74,17 @@ Screen definition fields:
 - `Missing Panel Behavior`: what to do if a referenced panel is not registered.
 - `Close As Group On Back`: closes the whole screen group when backing out.
 - `Close Existing Screens`: closes already-open screens before this screen opens.
+
+Configuration fields:
+
+- `Stable Id`: a persistent identifier for code and serialized references.
+- `Display Name`: the designer-facing layout name.
+- `Panels`: the panels composed by this layout.
+- `Extensions`: layout-specific replacements for screen or root extensions.
+- `Initial Navigation Entry Id`: the navigation entry selected when the layout opens.
+
+Use configurations for layouts such as faction selection, buy, and sell within one shop screen.
+Changing the active configuration does not add another screen to the back stack.
 
 ## Content Entries
 

@@ -55,11 +55,18 @@ namespace LoogaSoft.Menu.Editor
         public static void ResolveExtensions(LoogaMenuRoot root, LoogaMenuScreenDefinition screen,
             List<LoogaMenuExtensionDefinition> destination)
         {
+            ResolveExtensions(root, screen, screen?.DefaultConfiguration, destination);
+        }
+
+        public static void ResolveExtensions(LoogaMenuRoot root, LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenConfiguration configuration, List<LoogaMenuExtensionDefinition> destination)
+        {
             destination.Clear();
 
             Dictionary<string, int> indicesById = new(StringComparer.Ordinal);
             AddOrReplaceExtensions(root != null ? root.DefaultExtensions : null, destination, indicesById);
             AddOrReplaceExtensions(screen != null ? screen.Extensions : null, destination, indicesById);
+            AddOrReplaceExtensions(configuration != null ? configuration.Extensions : null, destination, indicesById);
         }
 
         public static void DrawDefinitionHeader(string title, string helpText)

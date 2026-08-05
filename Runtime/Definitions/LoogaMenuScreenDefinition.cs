@@ -22,7 +22,13 @@ namespace LoogaSoft.Menu
         [SerializeField, TextArea] private string _description;
 
         [Header("Composition")]
+        [HideInInspector]
+        [SerializeField] private LoogaMenuScreenConfiguration[] _configurations = Array.Empty<LoogaMenuScreenConfiguration>();
+        [HideInInspector]
+        [SerializeField] private LoogaMenuScreenConfiguration _defaultConfiguration;
+        [Tooltip("Used only by screens that have not been migrated to configurations.")]
         [InspectorName("Default Panels")]
+        [HideInInspector]
         [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
         [SerializeField] private LoogaMenuScreenContentEntry[] _contentEntries = Array.Empty<LoogaMenuScreenContentEntry>();
         [SerializeField]
@@ -48,6 +54,8 @@ namespace LoogaSoft.Menu
             ? _displayName
             : name;
         public string Description => _description;
+        public LoogaMenuScreenConfiguration[] Configurations => _configurations;
+        public LoogaMenuScreenConfiguration DefaultConfiguration => ResolveConfiguration(null);
         public LoogaMenuScreenPanelEntry[] DefaultPanels => _panels;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
         public LoogaMenuScreenContentEntry[] ContentEntries => _contentEntries;
@@ -59,6 +67,67 @@ namespace LoogaSoft.Menu
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
         public bool CloseAsGroupOnBack => _closeAsGroupOnBack;
         public bool CloseExistingScreens => _closeExistingScreens;
+
+        /// <summary>
+        /// Resolves a requested configuration. Existing screens without configurations use their legacy composition.
+        /// </summary>
+        public LoogaMenuScreenConfiguration ResolveConfiguration(LoogaMenuScreenConfiguration requested)
+        {
+            if (requested != null && ContainsConfiguration(requested))
+                return requested;
+
+            if (_defaultConfiguration != null && ContainsConfiguration(_defaultConfiguration))
+                return _defaultConfiguration;
+
+            foreach (LoogaMenuScreenConfiguration configuration in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
+            {
+                if (configuration != null)
+                    return configuration;
+            }
+
+            return null;
+        }
+
+        /// <summary>Gets the panel composition for one configuration.</summary>
+        public LoogaMenuScreenPanelEntry[] GetPanels(LoogaMenuScreenConfiguration configuration)
+        {
+            LoogaMenuScreenConfiguration resolved = ResolveConfiguration(configuration);
+            return resolved != null ? resolved.Panels : _panels;
+        }
+
+        /// <summary>Returns whether this screen owns the configuration.</summary>
+        public bool ContainsConfiguration(LoogaMenuScreenConfiguration configuration)
+        {
+            if (configuration == null)
+                return false;
+
+            foreach (LoogaMenuScreenConfiguration candidate in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
+            {
+                if (candidate == configuration)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Finds an owned configuration by stable ID.</summary>
+        public bool TryGetConfiguration(string stableId, out LoogaMenuScreenConfiguration configuration)
+        {
+            configuration = null;
+            if (string.IsNullOrWhiteSpace(stableId))
+                return false;
+
+            foreach (LoogaMenuScreenConfiguration candidate in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
+            {
+                if (candidate == null || candidate.StableId != stableId)
+                    continue;
+
+                configuration = candidate;
+                return true;
+            }
+
+            return false;
+        }
 
         public LoogaMenuPanelDefinition GetBackgroundPanel(LoogaMenuPanelDefinition rootDefault)
         {
@@ -99,6 +168,19 @@ namespace LoogaSoft.Menu
                 entry?.EnsureStableId();
                 entry?.RefreshDefaultDisplayName();
             }
+
+            _configurations ??= Array.Empty<LoogaMenuScreenConfiguration>();
+            foreach (LoogaMenuScreenConfiguration configuration in _configurations)
+            {
+                configuration?.EnsureStableId();
+                configuration?.RefreshDefaultDisplayName();
+            }
+
+            if (_defaultConfiguration != null && !ContainsConfiguration(_defaultConfiguration))
+                _defaultConfiguration = null;
+
+            if (_defaultConfiguration == null)
+                _defaultConfiguration = ResolveConfiguration(null);
 
             _extensions ??= Array.Empty<LoogaMenuExtensionDefinition>();
         }

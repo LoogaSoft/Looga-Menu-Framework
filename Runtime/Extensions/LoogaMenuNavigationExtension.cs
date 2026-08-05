@@ -71,8 +71,9 @@ namespace LoogaSoft.Menu
         public void Attach(LoogaMenuExtensionContext context)
         {
             _context = context;
-            _selectedIndex = 0;
-            IsActive = _activateOnOpen && _entries.Length > 0;
+            _selectedIndex = FindInitialIndex(context.Configuration?.InitialNavigationEntryId);
+            IsActive = _entries.Length > 0
+                && (_activateOnOpen || !string.IsNullOrWhiteSpace(context.Configuration?.InitialNavigationEntryId));
         }
 
         public void Show()
@@ -211,6 +212,20 @@ namespace LoogaSoft.Menu
             _selectedIndex >= 0 && _selectedIndex < _entries.Length
                 ? _entries[_selectedIndex]
                 : null;
+
+        private int FindInitialIndex(string stableId)
+        {
+            if (!string.IsNullOrWhiteSpace(stableId))
+            {
+                for (int i = 0; i < _entries.Length; i++)
+                {
+                    if (_entries[i] != null && _entries[i].StableId == stableId)
+                        return i;
+                }
+            }
+
+            return 0;
+        }
 
         private void ShowEntry(LoogaMenuNavigationEntry entry)
         {

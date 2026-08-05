@@ -59,13 +59,16 @@ namespace LoogaSoft.Menu
     {
         private readonly LoogaMenuManager _manager;
 
-        internal LoogaMenuExtensionContext(LoogaMenuManager manager, LoogaMenuScreenDefinition screen)
+        internal LoogaMenuExtensionContext(LoogaMenuManager manager, LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenConfiguration configuration)
         {
             _manager = manager;
             Screen = screen;
+            Configuration = configuration;
         }
 
         public LoogaMenuScreenDefinition Screen { get; }
+        public LoogaMenuScreenConfiguration Configuration { get; }
         public ILoogaBlackboardReader BlackboardReader => _manager.BlackboardReader;
         public ILoogaBlackboardWriter BlackboardWriter => _manager.BlackboardWriter;
 

@@ -115,6 +115,20 @@ namespace LoogaSoft.Menu
             return _menuManager != null && _menuManager.Open(screen, requester, payload);
         }
 
+        /// <summary>Opens a specific configuration of a screen.</summary>
+        public bool Open(LoogaMenuScreenDefinition screen, LoogaMenuScreenConfiguration configuration,
+            UnityEngine.Object requester = null, object payload = null)
+        {
+            return _menuManager != null && _menuManager.Open(screen, configuration, requester, payload);
+        }
+
+        /// <summary>Changes an open screen configuration without adding a back-stack entry.</summary>
+        public bool SetConfiguration(LoogaMenuScreenDefinition screen, LoogaMenuScreenConfiguration configuration,
+            UnityEngine.Object requester = null)
+        {
+            return _menuManager != null && _menuManager.SetConfiguration(screen, configuration, requester);
+        }
+
         /// <summary>Opens one content entry on its owning screen.</summary>
         public bool OpenContent(LoogaMenuScreenContentEntry entry, UnityEngine.Object requester = null, object payload = null)
         {

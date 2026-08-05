@@ -16,6 +16,7 @@ namespace LoogaSoft.Menu.Editor
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
         private readonly List<LoogaMenuPanelDefinition> _panelDefinitions = new();
         private readonly Vector2[] _scrollPositions = new Vector2[2];
+        private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
         private PreviewTab _tab;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
@@ -69,7 +70,7 @@ namespace LoogaSoft.Menu.Editor
             {
                 foreach (LoogaMenuScreenDefinition screen in _screens)
                 {
-                    DrawDefinitionRow(screen, screen.DisplayName, panels.Length > 0, () => Preview(screen));
+                    DrawScreen(screen, panels.Length > 0);
                 }
             }
             else
@@ -81,6 +82,46 @@ namespace LoogaSoft.Menu.Editor
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawScreen(LoogaMenuScreenDefinition screen, bool canPreview)
+        {
+            if (screen == null)
+                return;
+
+            LoogaMenuScreenConfiguration[] configurations = screen.Configurations;
+            if (configurations == null || configurations.Length == 0)
+            {
+                DrawDefinitionRow(screen, screen.DisplayName, canPreview, () => Preview(screen, null));
+                return;
+            }
+
+            bool expanded = _screenFoldouts.TryGetValue(screen, out bool current) && current;
+            Rect row = EditorGUILayout.GetControlRect(false, 24f);
+            Event currentEvent = Event.current;
+            if (currentEvent.type == EventType.MouseDown && currentEvent.button == 1 && row.Contains(currentEvent.mousePosition))
+            {
+                OpenDefinition(screen);
+                currentEvent.Use();
+                return;
+            }
+
+            expanded = EditorGUI.Foldout(row, expanded, screen.DisplayName, true);
+            _screenFoldouts[screen] = expanded;
+            if (!expanded)
+                return;
+
+            EditorGUI.indentLevel++;
+            foreach (LoogaMenuScreenConfiguration configuration in configurations)
+            {
+                if (configuration == null)
+                    continue;
+
+                string suffix = configuration == screen.DefaultConfiguration ? " (Default)" : string.Empty;
+                DrawDefinitionRow(configuration, configuration.DisplayName + suffix, canPreview,
+                    () => Preview(screen, configuration));
+            }
+            EditorGUI.indentLevel--;
         }
 
         private void RefreshDefinitions()
@@ -149,7 +190,7 @@ namespace LoogaSoft.Menu.Editor
             AssetDatabase.OpenAsset(definition);
         }
 
-        private static void Preview(LoogaMenuScreenDefinition screen)
+        private static void Preview(LoogaMenuScreenDefinition screen, LoogaMenuScreenConfiguration configuration)
         {
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
@@ -163,7 +204,8 @@ namespace LoogaSoft.Menu.Editor
 
             ShowPanel(screen.GetBackgroundPanel(defaultBackgroundPanel));
 
-            foreach (LoogaMenuScreenPanelEntry entry in screen.DefaultPanels)
+            configuration = screen.ResolveConfiguration(configuration);
+            foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(configuration))
             {
                 if (entry == null)
                     continue;
@@ -172,7 +214,7 @@ namespace LoogaSoft.Menu.Editor
             }
 
             ShowSingleContentEntry(screen);
-            ShowExtensions(root, screen);
+            ShowExtensions(root, screen, configuration);
         }
 
         private static void Preview(LoogaMenuPanelDefinition definition)
@@ -186,10 +228,11 @@ namespace LoogaSoft.Menu.Editor
         /// Previews the initial panel composition contributed by effective extensions.
         /// Screen extensions replace matching root defaults by extension ID.
         /// </summary>
-        private static void ShowExtensions(LoogaMenuRoot root, LoogaMenuScreenDefinition screen)
+        private static void ShowExtensions(LoogaMenuRoot root, LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenConfiguration configuration)
         {
             List<LoogaMenuExtensionDefinition> extensions = new();
-            LoogaMenuEditorUtility.ResolveExtensions(root, screen, extensions);
+            LoogaMenuEditorUtility.ResolveExtensions(root, screen, configuration, extensions);
 
             foreach (LoogaMenuExtensionDefinition extension in extensions)
             {
@@ -202,13 +245,14 @@ namespace LoogaSoft.Menu.Editor
                     continue;
                 }
 
-                if (extension is not LoogaMenuNavigationExtension navigation
-                    || !navigation.ActivateOnOpen
-                    || navigation.Entries.Length == 0
-                    || navigation.Entries[0] == null)
+                if (extension is not LoogaMenuNavigationExtension navigation || navigation.Entries.Length == 0)
                     continue;
 
-                foreach (LoogaMenuScreenPanelEntry entry in navigation.Entries[0].Panels)
+                LoogaMenuNavigationEntry initialEntry = ResolveInitialNavigationEntry(navigation, configuration);
+                if (initialEntry == null)
+                    continue;
+
+                foreach (LoogaMenuScreenPanelEntry entry in initialEntry.Panels)
                 {
                     if (entry != null)
                     {
@@ -216,6 +260,22 @@ namespace LoogaSoft.Menu.Editor
                     }
                 }
             }
+        }
+
+        private static LoogaMenuNavigationEntry ResolveInitialNavigationEntry(
+            LoogaMenuNavigationExtension navigation, LoogaMenuScreenConfiguration configuration)
+        {
+            string initialId = configuration?.InitialNavigationEntryId;
+            if (!string.IsNullOrWhiteSpace(initialId))
+            {
+                foreach (LoogaMenuNavigationEntry entry in navigation.Entries)
+                {
+                    if (entry != null && entry.StableId == initialId)
+                        return entry;
+                }
+            }
+
+            return navigation.ActivateOnOpen ? navigation.Entries[0] : null;
         }
 
         /// <summary>
@@ -239,7 +299,7 @@ namespace LoogaSoft.Menu.Editor
             if (entry.Screen == null)
                 return;
 
-            foreach (LoogaMenuScreenPanelEntry nestedEntry in entry.Screen.DefaultPanels)
+            foreach (LoogaMenuScreenPanelEntry nestedEntry in entry.Screen.GetPanels(entry.Screen.DefaultConfiguration))
             {
                 if (nestedEntry != null)
                 {

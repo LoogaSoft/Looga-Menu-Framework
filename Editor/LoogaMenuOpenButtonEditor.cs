@@ -31,7 +31,10 @@ namespace LoogaSoft.Menu.Editor
             }
             else
             {
-                DrawLoogaProperty("_screen");
+                SerializedProperty screen = DrawLoogaProperty("_screen");
+                LoogaMenuScreenConfigurationPopupUtility.Draw(
+                    screen.objectReferenceValue as LoogaMenuScreenDefinition,
+                    serializedObject.FindProperty("_configuration"));
             }
 
             SerializedProperty useActiveMenuRoot = DrawLoogaProperty("_useActiveMenuRoot");
