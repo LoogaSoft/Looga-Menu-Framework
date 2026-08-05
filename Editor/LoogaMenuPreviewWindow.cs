@@ -11,22 +11,14 @@ namespace LoogaSoft.Menu.Editor
         private const float PreviewButtonHeight = 26f;
         private const float PreviewButtonLeftPadding = 10f;
         private const float PreviewButtonRightPadding = 10f;
-        private const float PreviewButtonDisclosurePadding = 28f;
+        private const float PreviewButtonDisclosureLeftPadding = 28f;
         private const float PreviewButtonTriangleSide = 8f;
 
-        private enum PreviewTab
-        {
-            Screens,
-            Panels
-        }
-
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
-        private readonly List<LoogaMenuPanelDefinition> _panelDefinitions = new();
-        private readonly Vector2[] _scrollPositions = new Vector2[2];
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
         private static GUIStyle _previewButtonStyle;
         private static GUIStyle _previewDisclosureButtonStyle;
-        private PreviewTab _tab;
+        private Vector2 _scrollPosition;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
         public static void Open()
@@ -72,30 +64,16 @@ namespace LoogaSoft.Menu.Editor
                 }
             }
 
-            _tab = (PreviewTab)GUILayout.Toolbar((int)_tab, new[] { "Screens", "Panels" });
-
             if (panels.Length == 0)
             {
                 EditorGUILayout.HelpBox("Open the additive UI scene containing LoogaMenuPanel objects to preview definitions.",
                     MessageType.Warning);
             }
 
-            int tabIndex = (int)_tab;
-            _scrollPositions[tabIndex] = EditorGUILayout.BeginScrollView(_scrollPositions[tabIndex]);
-
-            if (_tab == PreviewTab.Screens)
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
+            foreach (LoogaMenuScreenDefinition screen in _screens)
             {
-                foreach (LoogaMenuScreenDefinition screen in _screens)
-                {
-                    DrawScreen(screen, panels.Length > 0);
-                }
-            }
-            else
-            {
-                foreach (LoogaMenuPanelDefinition panel in _panelDefinitions)
-                {
-                    DrawDefinitionRow(panel, panel.DisplayName, panels.Length > 0, () => Preview(panel));
-                }
+                DrawScreen(screen, panels.Length > 0);
             }
 
             EditorGUILayout.EndScrollView();
@@ -163,12 +141,9 @@ namespace LoogaSoft.Menu.Editor
         private void RefreshDefinitions()
         {
             _screens.Clear();
-            _panelDefinitions.Clear();
 
             LoadDefinitions(_screens);
-            LoadDefinitions(_panelDefinitions);
             _screens.Sort(CompareDefinitions);
-            _panelDefinitions.Sort(CompareDefinitions);
         }
 
         private static void DrawDefinitionRow<T>(T definition, string displayName, bool canPreview,
@@ -229,8 +204,10 @@ namespace LoogaSoft.Menu.Editor
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
                 padding = new RectOffset(
-                    Mathf.RoundToInt(PreviewButtonLeftPadding),
-                    Mathf.RoundToInt(showDisclosure ? PreviewButtonDisclosurePadding : PreviewButtonRightPadding),
+                    Mathf.RoundToInt(showDisclosure
+                        ? PreviewButtonDisclosureLeftPadding
+                        : PreviewButtonLeftPadding),
+                    Mathf.RoundToInt(PreviewButtonRightPadding),
                     0,
                     0)
             };
@@ -255,7 +232,7 @@ namespace LoogaSoft.Menu.Editor
             float side = LoogaEditorStyle.Pixels(PreviewButtonTriangleSide);
             float altitude = side * Mathf.Sqrt(3f) * 0.5f;
             Vector2 center = new(
-                LoogaEditorStyle.PixelSnapValue(row.xMax - LoogaEditorStyle.Pixels(14f)),
+                LoogaEditorStyle.PixelSnapValue(row.xMin + LoogaEditorStyle.Pixels(14f)),
                 LoogaEditorStyle.PixelSnapValue(row.center.y));
 
             Vector3[] points = expanded
@@ -331,13 +308,6 @@ namespace LoogaSoft.Menu.Editor
 
             ShowSingleContentEntry(screen);
             ShowExtensions(root, screen, configuration);
-        }
-
-        private static void Preview(LoogaMenuPanelDefinition definition)
-        {
-            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
-            ResetPreview(panels);
-            ShowPanel(definition);
         }
 
         /// <summary>
