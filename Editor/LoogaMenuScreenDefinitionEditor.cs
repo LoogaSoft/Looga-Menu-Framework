@@ -94,8 +94,7 @@ namespace LoogaSoft.Menu.Editor
             configurationObject.FindProperty("_stableId").stringValue = System.Guid.NewGuid().ToString("N");
             configurationObject.FindProperty("_displayName").stringValue = configuration.name;
             if (copyLegacyPanels)
-                configurationObject.FindProperty("_panels").CopyFromSerializedProperty(
-                    serializedObject.FindProperty("_panels"));
+                configurationObject.CopyFromSerializedProperty(serializedObject.FindProperty("_panels"));
             configurationObject.ApplyModifiedPropertiesWithoutUndo();
 
             int index = configurations.arraySize;
