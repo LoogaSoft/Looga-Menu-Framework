@@ -90,14 +90,18 @@ namespace LoogaSoft.Menu.Editor
                 return;
 
             LoogaMenuScreenConfiguration[] configurations = screen.Configurations;
-            if (configurations == null || configurations.Length == 0)
+            int configurationCount = CountConfigurations(configurations);
+            if (configurationCount == 0)
             {
                 DrawDefinitionRow(screen, screen.DisplayName, canPreview, () => Preview(screen, null));
                 return;
             }
 
             bool expanded = _screenFoldouts.TryGetValue(screen, out bool current) && current;
-            Rect row = EditorGUILayout.GetControlRect(false, 24f);
+            string label = $"{screen.DisplayName} ({configurationCount})";
+            GUIContent content = new(label,
+                "Left-click to show or hide configurations. Right-click to open and ping the screen definition.");
+            Rect row = GUILayoutUtility.GetRect(content, GUI.skin.button, GUILayout.Height(28f));
             Event currentEvent = Event.current;
             if (currentEvent.type == EventType.MouseDown && currentEvent.button == 1 && row.Contains(currentEvent.mousePosition))
             {
@@ -106,12 +110,13 @@ namespace LoogaSoft.Menu.Editor
                 return;
             }
 
-            expanded = EditorGUI.Foldout(row, expanded, screen.DisplayName, true);
+            if (GUI.Button(row, content))
+                expanded = !expanded;
+
             _screenFoldouts[screen] = expanded;
             if (!expanded)
                 return;
 
-            EditorGUI.indentLevel++;
             foreach (LoogaMenuScreenConfiguration configuration in configurations)
             {
                 if (configuration == null)
@@ -119,9 +124,23 @@ namespace LoogaSoft.Menu.Editor
 
                 string suffix = configuration == screen.DefaultConfiguration ? " (Default)" : string.Empty;
                 DrawDefinitionRow(configuration, configuration.DisplayName + suffix, canPreview,
-                    () => Preview(screen, configuration));
+                    () => Preview(screen, configuration), 18f);
             }
-            EditorGUI.indentLevel--;
+        }
+
+        private static int CountConfigurations(LoogaMenuScreenConfiguration[] configurations)
+        {
+            if (configurations == null)
+                return 0;
+
+            int count = 0;
+            foreach (LoogaMenuScreenConfiguration configuration in configurations)
+            {
+                if (configuration != null)
+                    count++;
+            }
+
+            return count;
         }
 
         private void RefreshDefinitions()
@@ -136,7 +155,7 @@ namespace LoogaSoft.Menu.Editor
         }
 
         private static void DrawDefinitionRow<T>(T definition, string displayName, bool canPreview,
-            System.Action preview) where T : ScriptableObject
+            System.Action preview, float leftInset = 0f) where T : ScriptableObject
         {
             if (definition == null)
                 return;
@@ -144,6 +163,7 @@ namespace LoogaSoft.Menu.Editor
             string label = string.IsNullOrWhiteSpace(displayName) ? definition.name : displayName;
             GUIContent content = new(label, "Left-click to preview. Right-click to open and ping the definition.");
             Rect buttonRect = GUILayoutUtility.GetRect(content, GUI.skin.button, GUILayout.Height(28f));
+            buttonRect.xMin += leftInset;
             Event currentEvent = Event.current;
 
             if (currentEvent.type == EventType.MouseDown
