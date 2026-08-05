@@ -11,7 +11,7 @@ namespace LoogaSoft.Menu.Editor
         private const float PreviewButtonHeight = 26f;
         private const float PreviewButtonLeftPadding = 10f;
         private const float PreviewButtonRightPadding = 10f;
-        private const float PreviewButtonDisclosureLeftPadding = 28f;
+        private const float PreviewButtonTriangleCenterInset = 14f;
         private const float PreviewButtonTriangleSide = 8f;
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
@@ -197,16 +197,19 @@ namespace LoogaSoft.Menu.Editor
         {
             GUIStyle style = showDisclosure ? _previewDisclosureButtonStyle : _previewButtonStyle;
             if (style != null)
+            {
+                style.padding.left = showDisclosure
+                    ? GetDisclosureTextPadding()
+                    : Mathf.RoundToInt(PreviewButtonLeftPadding);
                 return style;
+            }
 
             style = new GUIStyle(EditorStyles.label)
             {
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Clip,
                 padding = new RectOffset(
-                    Mathf.RoundToInt(showDisclosure
-                        ? PreviewButtonDisclosureLeftPadding
-                        : PreviewButtonLeftPadding),
+                    showDisclosure ? GetDisclosureTextPadding() : Mathf.RoundToInt(PreviewButtonLeftPadding),
                     Mathf.RoundToInt(PreviewButtonRightPadding),
                     0,
                     0)
@@ -224,6 +227,17 @@ namespace LoogaSoft.Menu.Editor
             return style;
         }
 
+        private static int GetDisclosureTextPadding()
+        {
+            float centerInset = LoogaEditorStyle.Pixels(PreviewButtonTriangleCenterInset);
+            float side = LoogaEditorStyle.Pixels(PreviewButtonTriangleSide);
+            float altitude = side * Mathf.Sqrt(3f) * 0.5f;
+            float triangleLeft = centerInset - side * 0.5f;
+            float triangleRight = centerInset + altitude * 2f / 3f;
+            float railGap = Mathf.Max(0f, triangleLeft - LoogaEditorStyle.AccentRailWidth);
+            return Mathf.CeilToInt(triangleRight + railGap);
+        }
+
         private static void DrawDisclosureTriangle(Rect row, bool expanded)
         {
             if (Event.current.type != EventType.Repaint)
@@ -232,7 +246,8 @@ namespace LoogaSoft.Menu.Editor
             float side = LoogaEditorStyle.Pixels(PreviewButtonTriangleSide);
             float altitude = side * Mathf.Sqrt(3f) * 0.5f;
             Vector2 center = new(
-                LoogaEditorStyle.PixelSnapValue(row.xMin + LoogaEditorStyle.Pixels(14f)),
+                LoogaEditorStyle.PixelSnapValue(row.xMin
+                    + LoogaEditorStyle.Pixels(PreviewButtonTriangleCenterInset)),
                 LoogaEditorStyle.PixelSnapValue(row.center.y));
 
             Vector3[] points = expanded
