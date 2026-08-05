@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using LoogaSoft.Inspector.Editor;
 using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
@@ -7,6 +8,12 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
+        private const float PreviewButtonHeight = 26f;
+        private const float PreviewButtonLeftPadding = 10f;
+        private const float PreviewButtonRightPadding = 10f;
+        private const float PreviewButtonDisclosurePadding = 28f;
+        private const float PreviewButtonTriangleSide = 8f;
+
         private enum PreviewTab
         {
             Screens,
@@ -17,6 +24,8 @@ namespace LoogaSoft.Menu.Editor
         private readonly List<LoogaMenuPanelDefinition> _panelDefinitions = new();
         private readonly Vector2[] _scrollPositions = new Vector2[2];
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
+        private static GUIStyle _previewButtonStyle;
+        private static GUIStyle _previewDisclosureButtonStyle;
         private PreviewTab _tab;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
@@ -28,6 +37,11 @@ namespace LoogaSoft.Menu.Editor
             window.Show();
         }
 
+        private void OnEnable()
+        {
+            wantsMouseMove = true;
+        }
+
         private void OnFocus()
         {
             RefreshDefinitions();
@@ -35,6 +49,9 @@ namespace LoogaSoft.Menu.Editor
 
         private void OnGUI()
         {
+            if (Event.current.type == EventType.MouseMove)
+                Repaint();
+
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
@@ -101,7 +118,7 @@ namespace LoogaSoft.Menu.Editor
             string label = $"{screen.DisplayName} ({configurationCount})";
             GUIContent content = new(label,
                 "Left-click to show or hide configurations. Right-click to open and ping the screen definition.");
-            Rect row = GUILayoutUtility.GetRect(content, GUI.skin.button, GUILayout.Height(28f));
+            Rect row = EditorGUILayout.GetControlRect(false, PreviewButtonHeight);
             Event currentEvent = Event.current;
             if (currentEvent.type == EventType.MouseDown && currentEvent.button == 1 && row.Contains(currentEvent.mousePosition))
             {
@@ -110,7 +127,7 @@ namespace LoogaSoft.Menu.Editor
                 return;
             }
 
-            if (GUI.Button(row, content))
+            if (DrawPreviewButton(row, content, true, expanded))
                 expanded = !expanded;
 
             _screenFoldouts[screen] = expanded;
@@ -162,7 +179,7 @@ namespace LoogaSoft.Menu.Editor
 
             string label = string.IsNullOrWhiteSpace(displayName) ? definition.name : displayName;
             GUIContent content = new(label, "Left-click to preview. Right-click to open and ping the definition.");
-            Rect buttonRect = GUILayoutUtility.GetRect(content, GUI.skin.button, GUILayout.Height(28f));
+            Rect buttonRect = EditorGUILayout.GetControlRect(false, PreviewButtonHeight);
             buttonRect.xMin += leftInset;
             Event currentEvent = Event.current;
 
@@ -177,11 +194,90 @@ namespace LoogaSoft.Menu.Editor
 
             using (new EditorGUI.DisabledScope(!canPreview))
             {
-                if (GUI.Button(buttonRect, content))
+                if (DrawPreviewButton(buttonRect, content))
                 {
                     preview?.Invoke();
                 }
             }
+        }
+
+        private static bool DrawPreviewButton(Rect rect, GUIContent content, bool showDisclosure = false,
+            bool expanded = false)
+        {
+            rect = LoogaEditorStyle.PixelSnap(rect);
+            GUI.Box(rect, GUIContent.none, LoogaEditorFoldouts.SmallFoldoutBoxStyle);
+
+            if (GUI.enabled && rect.Contains(Event.current.mousePosition))
+                LoogaEditorFoldouts.DrawHoverRect(rect);
+
+            GUIStyle style = GetPreviewButtonStyle(showDisclosure);
+            bool clicked = GUI.Button(rect, content, style);
+            if (showDisclosure)
+                DrawDisclosureTriangle(rect, expanded);
+
+            return clicked;
+        }
+
+        private static GUIStyle GetPreviewButtonStyle(bool showDisclosure)
+        {
+            GUIStyle style = showDisclosure ? _previewDisclosureButtonStyle : _previewButtonStyle;
+            if (style != null)
+                return style;
+
+            style = new GUIStyle(EditorStyles.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
+                padding = new RectOffset(
+                    Mathf.RoundToInt(PreviewButtonLeftPadding),
+                    Mathf.RoundToInt(showDisclosure ? PreviewButtonDisclosurePadding : PreviewButtonRightPadding),
+                    0,
+                    0)
+            };
+            style.normal.textColor = LoogaEditorStyle.TextColor;
+            style.hover.textColor = LoogaEditorStyle.TextColor;
+            style.active.textColor = LoogaEditorStyle.TextColor;
+            style.focused.textColor = LoogaEditorStyle.TextColor;
+
+            if (showDisclosure)
+                _previewDisclosureButtonStyle = style;
+            else
+                _previewButtonStyle = style;
+
+            return style;
+        }
+
+        private static void DrawDisclosureTriangle(Rect row, bool expanded)
+        {
+            if (Event.current.type != EventType.Repaint)
+                return;
+
+            float side = LoogaEditorStyle.Pixels(PreviewButtonTriangleSide);
+            float altitude = side * Mathf.Sqrt(3f) * 0.5f;
+            Vector2 center = new(
+                LoogaEditorStyle.PixelSnapValue(row.xMax - LoogaEditorStyle.Pixels(14f)),
+                LoogaEditorStyle.PixelSnapValue(row.center.y));
+
+            Vector3[] points = expanded
+                ? new[]
+                {
+                    new Vector3(center.x - side * 0.5f, center.y - altitude / 3f, 0f),
+                    new Vector3(center.x + side * 0.5f, center.y - altitude / 3f, 0f),
+                    new Vector3(center.x, center.y + altitude * 2f / 3f, 0f)
+                }
+                : new[]
+                {
+                    new Vector3(center.x - altitude / 3f, center.y - side * 0.5f, 0f),
+                    new Vector3(center.x - altitude / 3f, center.y + side * 0.5f, 0f),
+                    new Vector3(center.x + altitude * 2f / 3f, center.y, 0f)
+                };
+
+            Color previousColor = Handles.color;
+            Handles.color = LoogaEditorStyle.ArrowColor;
+            Handles.BeginGUI();
+            Handles.DrawAAConvexPolygon(points);
+            Handles.EndGUI();
+            Handles.color = previousColor;
         }
 
         private static void LoadDefinitions<T>(List<T> definitions) where T : ScriptableObject
