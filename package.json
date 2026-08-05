@@ -2,13 +2,13 @@
   "displayName": "Looga Menu Framework",
   "name": "com.loogasoft.loogamenuframework",
   "description": "Asset-driven UGUI menu framework for composed screens, reusable panels, typed state rules, and additive UI scene orchestration.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "LoogaSoft"
   },
   "dependencies": {
     "com.loogasoft.loogablackboard": "1.0.0",
-    "com.loogasoft.loogainspector": "1.0.0",
+    "com.loogasoft.loogatoolkit": "1.0.0",
     "com.unity.inputsystem": "1.0.0",
     "com.unity.ugui": "1.0.0"
   }
