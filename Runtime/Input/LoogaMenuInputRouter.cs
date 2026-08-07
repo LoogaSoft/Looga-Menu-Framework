@@ -14,10 +14,9 @@ namespace LoogaSoft.Menu
 
     public enum LoogaMenuInputTarget
     {
-        Screen = 0,
-        ScreenContentEntry = 1,
-        Back = 2,
-        CloseAll = 3
+        Destination = 0,
+        Back = 1,
+        CloseAll = 2
     }
 
     public enum LoogaMenuInputOpenBehavior
@@ -39,7 +38,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuRoot _menuRoot;
 
         [Header("Input")]
-        [Tooltip("Enable this only when no PlayerInput or input bootstrapper is already enabling these actions.")]
+        [Tooltip("Enable this only when no PlayerInput or input bootstrapper enables these actions.")]
         [SerializeField] private bool _manageActionEnabledState;
         [SerializeField] private bool _logRequirementFailures;
         [SerializeField] private LoogaMenuInputBinding[] _bindings = Array.Empty<LoogaMenuInputBinding>();
@@ -61,46 +60,37 @@ namespace LoogaSoft.Menu
             _bindings ??= Array.Empty<LoogaMenuInputBinding>();
         }
 
+        internal void HandleInput(LoogaMenuInputBinding binding, LoogaMenuInputTriggerPhase phase)
+        {
+            if (binding == null || phase != binding.TriggerPhase || _lastHandledInputFrame == Time.frameCount)
+                return;
+
+            LoogaMenuRoot root = ResolveMenuRoot();
+            if (root == null)
+                return;
+
+            if (!binding.CanOpen(root, out string failureReason))
+            {
+                if (_logRequirementFailures && !string.IsNullOrWhiteSpace(failureReason))
+                    Debug.LogWarning(failureReason, this);
+
+                return;
+            }
+
+            if (binding.Execute(root, this))
+                _lastHandledInputFrame = Time.frameCount;
+        }
+
         private void SubscribeBindings()
         {
             foreach (LoogaMenuInputBinding binding in _bindings)
-            {
                 binding?.Subscribe(this, _manageActionEnabledState);
-            }
         }
 
         private void UnsubscribeBindings()
         {
             foreach (LoogaMenuInputBinding binding in _bindings)
-            {
                 binding?.Unsubscribe(_manageActionEnabledState);
-            }
-        }
-
-        internal void HandleInput(LoogaMenuInputBinding binding, LoogaMenuInputTriggerPhase phase)
-        {
-            if (binding == null || phase != binding.TriggerPhase)
-                return;
-
-            if (_lastHandledInputFrame == Time.frameCount)
-                return;
-
-            LoogaMenuRoot root = ResolveMenuRoot();
-            string failureReason = string.Empty;
-            if (root == null || !binding.CanOpen(root, out failureReason))
-            {
-                if (_logRequirementFailures && !string.IsNullOrWhiteSpace(failureReason))
-                {
-                    Debug.LogWarning(failureReason, this);
-                }
-
-                return;
-            }
-
-            if (!binding.Execute(root, this))
-                return;
-
-            _lastHandledInputFrame = Time.frameCount;
         }
 
         private LoogaMenuRoot ResolveMenuRoot()
@@ -122,11 +112,8 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuInputOpenBehavior _openBehavior = LoogaMenuInputOpenBehavior.Open;
         [SerializeField] private LoogaMenuRuleSet _requirements;
 
-        [ShowIf(nameof(_target), (int)LoogaMenuInputTarget.Screen)]
-        [SerializeField] private LoogaMenuScreenDefinition _screen;
-
-        [ShowIf(nameof(_target), (int)LoogaMenuInputTarget.ScreenContentEntry)]
-        [SerializeField] private LoogaMenuScreenContentReference _contentEntry;
+        [ShowIf(nameof(_target), (int)LoogaMenuInputTarget.Destination)]
+        [SerializeField] private LoogaMenuDestination _destination = new();
 
         [NonSerialized] private Action<InputAction.CallbackContext> _startedCallback;
         [NonSerialized] private Action<InputAction.CallbackContext> _performedCallback;
@@ -154,9 +141,7 @@ namespace LoogaSoft.Menu
             action.canceled += _canceledCallback;
 
             if (manageActionEnabledState && !action.enabled)
-            {
                 action.Enable();
-            }
         }
 
         internal void Unsubscribe(bool manageActionEnabledState)
@@ -169,9 +154,7 @@ namespace LoogaSoft.Menu
             _subscribedAction.canceled -= _canceledCallback;
 
             if (manageActionEnabledState && _subscribedAction.enabled)
-            {
                 _subscribedAction.Disable();
-            }
 
             _startedCallback = null;
             _performedCallback = null;
@@ -182,11 +165,8 @@ namespace LoogaSoft.Menu
         internal bool CanOpen(LoogaMenuRoot root, out string failureReason)
         {
             failureReason = string.Empty;
-
-            if (_requirements == null)
-                return true;
-
-            return _requirements.CanOpen(root != null ? root.BlackboardReader : null, out failureReason);
+            return _requirements == null
+                || _requirements.CanOpen(root != null ? root.BlackboardReader : null, out failureReason);
         }
 
         internal bool Execute(LoogaMenuRoot root, UnityEngine.Object requester)
@@ -219,12 +199,7 @@ namespace LoogaSoft.Menu
 
         private bool OpenTarget(LoogaMenuRoot root, UnityEngine.Object requester)
         {
-            return _target switch
-            {
-                LoogaMenuInputTarget.Screen => _screen != null && root.Open(_screen, requester),
-                LoogaMenuInputTarget.ScreenContentEntry => _contentEntry != null && _contentEntry.Open(root, requester),
-                _ => false
-            };
+            return _destination != null && _destination.Open(root, requester);
         }
 
         private bool CloseAllThenOpen(LoogaMenuRoot root, UnityEngine.Object requester)
@@ -241,13 +216,22 @@ namespace LoogaSoft.Menu
 
         private bool IsTargetOpen(LoogaMenuRoot root)
         {
-            if (_target != LoogaMenuInputTarget.Screen || _screen == null || root.MenuManager == null)
+            if (_target != LoogaMenuInputTarget.Destination
+                || _destination == null
+                || !_destination.IsAssigned
+                || root.MenuManager == null)
+            {
                 return false;
+            }
 
+            LoogaMenuScreenDefinition screen = _destination.Screen;
             foreach (LoogaMenuScreenDefinition openScreen in root.MenuManager.OpenScreens)
             {
-                if (openScreen == _screen)
+                if (openScreen == screen
+                    && _destination.Matches(screen, root.MenuManager.GetActiveLayout(screen)))
+                {
                     return true;
+                }
             }
 
             return false;
@@ -257,9 +241,8 @@ namespace LoogaSoft.Menu
         {
             return _target switch
             {
-                LoogaMenuInputTarget.Screen when _screen != null => _screen.DisplayName,
-                LoogaMenuInputTarget.ScreenContentEntry when _contentEntry != null && _contentEntry.Screen != null =>
-                    _contentEntry.Screen.DisplayName,
+                LoogaMenuInputTarget.Destination when _destination?.Screen != null =>
+                    _destination.Layout != null ? _destination.Layout.DisplayName : _destination.Screen.DisplayName,
                 LoogaMenuInputTarget.Back => "Back",
                 LoogaMenuInputTarget.CloseAll => "Close All",
                 _ => "Menu Input"

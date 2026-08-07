@@ -12,6 +12,9 @@ namespace LoogaSoft.Menu
         None = 2
     }
 
+    /// <summary>
+    /// Defines one menu destination. A screen owns its layouts, navigation entries, and menu behavior.
+    /// </summary>
     [CreateAssetMenu(fileName = "New Menu Screen", menuName = "LoogaSoft/Menu Framework/Screen Definition")]
     public sealed class LoogaMenuScreenDefinition : ScriptableObject
     {
@@ -21,20 +24,18 @@ namespace LoogaSoft.Menu
         [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
-        [Header("Composition")]
-        [HideInInspector]
-        [SerializeField] private LoogaMenuScreenConfiguration[] _configurations = Array.Empty<LoogaMenuScreenConfiguration>();
-        [HideInInspector]
-        [SerializeField] private LoogaMenuScreenConfiguration _defaultConfiguration;
-        [Tooltip("Used only by screens that have not been migrated to configurations.")]
-        [InspectorName("Default Panels")]
-        [HideInInspector]
-        [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
-        [SerializeField] private LoogaMenuScreenContentEntry[] _contentEntries = Array.Empty<LoogaMenuScreenContentEntry>();
-        [SerializeField]
-        [FormerlySerializedAs("_features")]
-        [Tooltip("Optional behaviors composed into this screen. A screen extension replaces a root default with the same extension ID.")]
-        private LoogaMenuExtensionDefinition[] _extensions = Array.Empty<LoogaMenuExtensionDefinition>();
+        [Header("Layouts")]
+        [FormerlySerializedAs("_configurations")]
+        [SerializeField] private LoogaMenuScreenLayout[] _layouts = Array.Empty<LoogaMenuScreenLayout>();
+        [FormerlySerializedAs("_defaultConfiguration")]
+        [SerializeField] private LoogaMenuScreenLayout _defaultLayout;
+
+        [Header("Navigation")]
+        [Tooltip("Entries contributed to the shared navigation presenter while this screen is active.")]
+        [SerializeField] private LoogaMenuNavigationLayer[] _navigation = Array.Empty<LoogaMenuNavigationLayer>();
+
+        [Header("Action Bar")]
+        [SerializeField] private LoogaMenuActionBarOverride _actionBar;
 
         [Header("Background")]
         [InspectorName("Background Panel Source")]
@@ -46,84 +47,55 @@ namespace LoogaSoft.Menu
         [InspectorName("Open Requirements")]
         [SerializeField] private LoogaMenuRuleSet _rules;
         [SerializeField] private LoogaMenuInputPolicy _inputPolicy;
+        [SerializeField] private LoogaMenuOpenMode _defaultOpenMode = LoogaMenuOpenMode.Replace;
         [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
-        [SerializeField] private bool _closeAsGroupOnBack = true;
-        [SerializeField] private bool _closeExistingScreens = true;
 
         public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
             ? _displayName
             : name;
         public string Description => _description;
-        public LoogaMenuScreenConfiguration[] Configurations => _configurations;
-        public LoogaMenuScreenConfiguration DefaultConfiguration => ResolveConfiguration(null);
-        public LoogaMenuScreenPanelEntry[] DefaultPanels => _panels;
-        public LoogaMenuScreenPanelEntry[] Panels => _panels;
-        public LoogaMenuScreenContentEntry[] ContentEntries => _contentEntries;
-        public LoogaMenuExtensionDefinition[] Extensions => _extensions;
+        public LoogaMenuScreenLayout[] Layouts => _layouts;
+        public LoogaMenuScreenLayout DefaultLayout => ResolveLayout(null);
+        public LoogaMenuNavigationLayer[] Navigation => _navigation;
+        public LoogaMenuActionBarOverride ActionBar => _actionBar;
         public LoogaMenuPanelReferenceMode BackgroundPanelMode => _backgroundPanelMode;
         public LoogaMenuPanelDefinition BackgroundPanelOverride => _backgroundPanel;
         public LoogaMenuRuleSet Rules => _rules;
-        public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
-        public bool CloseAsGroupOnBack => _closeAsGroupOnBack;
-        public bool CloseExistingScreens => _closeExistingScreens;
+        public LoogaMenuOpenMode DefaultOpenMode => _defaultOpenMode;
+        public LoogaMenuMissingPanelBehavior MissingPanelBehavior => _missingPanelBehavior;
 
-        /// <summary>
-        /// Resolves a requested configuration. Existing screens without configurations use their legacy composition.
-        /// </summary>
-        public LoogaMenuScreenConfiguration ResolveConfiguration(LoogaMenuScreenConfiguration requested)
+        public LoogaMenuScreenLayout ResolveLayout(LoogaMenuScreenLayout requested)
         {
-            if (requested != null && ContainsConfiguration(requested))
+            if (requested != null && ContainsLayout(requested))
                 return requested;
 
-            if (_defaultConfiguration != null && ContainsConfiguration(_defaultConfiguration))
-                return _defaultConfiguration;
+            if (_defaultLayout != null && ContainsLayout(_defaultLayout))
+                return _defaultLayout;
 
-            foreach (LoogaMenuScreenConfiguration configuration in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
+            foreach (LoogaMenuScreenLayout layout in _layouts ?? Array.Empty<LoogaMenuScreenLayout>())
             {
-                if (configuration != null)
-                    return configuration;
+                if (layout != null)
+                    return layout;
             }
 
             return null;
         }
 
-        /// <summary>Gets the panel composition for one configuration.</summary>
-        public LoogaMenuScreenPanelEntry[] GetPanels(LoogaMenuScreenConfiguration configuration)
+        public LoogaMenuScreenPanelEntry[] GetPanels(LoogaMenuScreenLayout layout)
         {
-            LoogaMenuScreenConfiguration resolved = ResolveConfiguration(configuration);
-            return resolved != null ? resolved.Panels : _panels;
+            return ResolveLayout(layout)?.Panels ?? Array.Empty<LoogaMenuScreenPanelEntry>();
         }
 
-        /// <summary>Returns whether this screen owns the configuration.</summary>
-        public bool ContainsConfiguration(LoogaMenuScreenConfiguration configuration)
+        public bool ContainsLayout(LoogaMenuScreenLayout layout)
         {
-            if (configuration == null)
+            if (layout == null)
                 return false;
 
-            foreach (LoogaMenuScreenConfiguration candidate in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
+            foreach (LoogaMenuScreenLayout candidate in _layouts ?? Array.Empty<LoogaMenuScreenLayout>())
             {
-                if (candidate == configuration)
+                if (candidate == layout)
                     return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>Finds an owned configuration by stable ID.</summary>
-        public bool TryGetConfiguration(string stableId, out LoogaMenuScreenConfiguration configuration)
-        {
-            configuration = null;
-            if (string.IsNullOrWhiteSpace(stableId))
-                return false;
-
-            foreach (LoogaMenuScreenConfiguration candidate in _configurations ?? Array.Empty<LoogaMenuScreenConfiguration>())
-            {
-                if (candidate == null || candidate.StableId != stableId)
-                    continue;
-
-                configuration = candidate;
-                return true;
             }
 
             return false;
@@ -131,71 +103,46 @@ namespace LoogaSoft.Menu
 
         public LoogaMenuPanelDefinition GetBackgroundPanel(LoogaMenuPanelDefinition rootDefault)
         {
-            return ResolveOptionalPanel(_backgroundPanelMode, _backgroundPanel, rootDefault);
+            return _backgroundPanelMode switch
+            {
+                LoogaMenuPanelReferenceMode.UseRootDefault => rootDefault != null ? rootDefault : _backgroundPanel,
+                LoogaMenuPanelReferenceMode.Override => _backgroundPanel,
+                _ => null
+            };
         }
 
-        /// <summary>
-        /// Finds a content entry by its serialized stable ID.
-        /// </summary>
-        public bool TryGetContentEntry(string stableId, out LoogaMenuScreenContentEntry entry)
+        public LoogaMenuNavigationLayer ResolveNavigation(LoogaMenuScreenLayout layout,
+            LoogaMenuNavigationPlacement placement)
         {
-            entry = null;
-
-            if (string.IsNullOrWhiteSpace(stableId))
-                return false;
-
-            foreach (LoogaMenuScreenContentEntry candidate in _contentEntries)
-            {
-                if (candidate == null || candidate.StableId != stableId)
-                    continue;
-
-                entry = candidate;
-                return true;
-            }
-
-            return false;
+            LoogaMenuScreenLayout resolvedLayout = ResolveLayout(layout);
+            LoogaMenuNavigationLayer layoutLayer = FindNavigation(resolvedLayout?.NavigationOverrides, placement);
+            return layoutLayer ?? FindNavigation(_navigation, placement);
         }
 
         private void OnValidate()
         {
             if (!_useCustomDisplayName)
-            {
                 _displayName = name;
-            }
 
-            foreach (LoogaMenuScreenContentEntry entry in _contentEntries)
-            {
-                entry?.EnsureStableId();
-                entry?.RefreshDefaultDisplayName();
-            }
+            _layouts ??= Array.Empty<LoogaMenuScreenLayout>();
+            _navigation ??= Array.Empty<LoogaMenuNavigationLayer>();
+            if (_defaultLayout != null && !ContainsLayout(_defaultLayout))
+                _defaultLayout = null;
 
-            _configurations ??= Array.Empty<LoogaMenuScreenConfiguration>();
-            foreach (LoogaMenuScreenConfiguration configuration in _configurations)
-            {
-                configuration?.EnsureStableId();
-                configuration?.RefreshDefaultDisplayName();
-            }
-
-            if (_defaultConfiguration != null && !ContainsConfiguration(_defaultConfiguration))
-                _defaultConfiguration = null;
-
-            if (_defaultConfiguration == null)
-                _defaultConfiguration = ResolveConfiguration(null);
-
-            _extensions ??= Array.Empty<LoogaMenuExtensionDefinition>();
+            _defaultLayout ??= ResolveLayout(null);
         }
 
-        private static LoogaMenuPanelDefinition ResolveOptionalPanel(LoogaMenuPanelReferenceMode mode,
-            LoogaMenuPanelDefinition overridePanel, LoogaMenuPanelDefinition rootDefault)
+        private static LoogaMenuNavigationLayer FindNavigation(
+            LoogaMenuNavigationLayer[] layers,
+            LoogaMenuNavigationPlacement placement)
         {
-            return mode switch
+            foreach (LoogaMenuNavigationLayer layer in layers ?? Array.Empty<LoogaMenuNavigationLayer>())
             {
-                LoogaMenuPanelReferenceMode.UseRootDefault => rootDefault != null ? rootDefault : overridePanel,
-                LoogaMenuPanelReferenceMode.Override => overridePanel,
-                LoogaMenuPanelReferenceMode.None => null,
-                _ => null
-            };
+                if (layer != null && layer.Placement == placement)
+                    return layer;
+            }
+
+            return null;
         }
     }
 }
-

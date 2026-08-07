@@ -1,11 +1,9 @@
-using System;
 using LoogaSoft.Blackboard;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace LoogaSoft.Menu
 {
-    /// <summary>Owns menu state, panel registration, extensions, and cursor policy.</summary>
+    /// <summary>Owns menu state, panel registration, shared presentation, and cursor policy.</summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("LoogaSoft/Menu/Menu Root")]
     public sealed class LoogaMenuRoot : MonoBehaviour
@@ -14,14 +12,9 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _registerChildrenOnAwake = true;
         [SerializeField] private LoogaMenuPanel[] _scenePanels = System.Array.Empty<LoogaMenuPanel>();
 
-        [Header("Default Panels")]
+        [Header("Default Presentation")]
         [SerializeField] private LoogaMenuPanelDefinition _defaultBackgroundPanel;
-
-        [Header("Default Extensions")]
-        [SerializeField]
-        [FormerlySerializedAs("_defaultFeatures")]
-        [Tooltip("Optional behaviors inherited by screens unless a screen supplies an extension with the same ID.")]
-        private LoogaMenuExtensionDefinition[] _defaultExtensions = Array.Empty<LoogaMenuExtensionDefinition>();
+        [SerializeField] private LoogaMenuActionBarSettings _defaultActionBar = new();
 
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
@@ -48,27 +41,24 @@ namespace LoogaSoft.Menu
         /// <summary>Gets the default background panel.</summary>
         public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
 
-        /// <summary>Gets the extensions inherited by screens without matching overrides.</summary>
-        public LoogaMenuExtensionDefinition[] DefaultExtensions => _defaultExtensions;
+        /// <summary>Gets the default settings used by the shared action bar.</summary>
+        public LoogaMenuActionBarSettings DefaultActionBar => _defaultActionBar;
 
         /// <summary>Applies project-level menu behavior at runtime.</summary>
-        public void ApplyRuntimeDefaults(bool registerChildrenOnAwake,
+        public void ApplyRuntimeDefaults(
+            bool registerChildrenOnAwake,
             LoogaMenuPanelDefinition defaultBackgroundPanel,
+            LoogaMenuActionBarSettings defaultActionBar,
             bool controlCursor,
             CursorLockMode closedLockMode,
             bool closedCursorVisible)
         {
             _registerChildrenOnAwake = registerChildrenOnAwake;
             _defaultBackgroundPanel = defaultBackgroundPanel;
+            _defaultActionBar = defaultActionBar;
             _controlCursor = controlCursor;
             _closedLockMode = closedLockMode;
             _closedCursorVisible = closedCursorVisible;
-        }
-
-        /// <summary>Applies project-level menu extensions at runtime.</summary>
-        public void ApplyRuntimeExtensions(LoogaMenuExtensionDefinition[] defaultExtensions)
-        {
-            _defaultExtensions = defaultExtensions ?? Array.Empty<LoogaMenuExtensionDefinition>();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -85,7 +75,7 @@ namespace LoogaSoft.Menu
                 _blackboardReader,
                 _blackboardWriter,
                 _defaultBackgroundPanel,
-                _defaultExtensions);
+                _defaultActionBar);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();
@@ -96,52 +86,44 @@ namespace LoogaSoft.Menu
         private void OnDestroy()
         {
             if (_menuManager != null)
-            {
                 _menuManager.StateChanged -= OnMenuStateChanged;
-            }
 
             UnregisterStateProviders();
             ReleaseOwnedBlackboard();
 
             if (Active == this)
-            {
                 Active = null;
-            }
         }
 
-        /// <summary>Opens a screen for the specified requester and payload.</summary>
-        public bool Open(LoogaMenuScreenDefinition screen, UnityEngine.Object requester = null, object payload = null)
+        /// <summary>Opens a typed menu destination.</summary>
+        public bool Open(LoogaMenuDestination destination, Object requester = null, object payload = null)
+        {
+            return _menuManager != null && _menuManager.Open(destination, requester, payload);
+        }
+
+        /// <summary>Opens the default layout of a screen.</summary>
+        public bool Open(LoogaMenuScreenDefinition screen, Object requester = null, object payload = null)
         {
             return _menuManager != null && _menuManager.Open(screen, requester, payload);
         }
 
-        /// <summary>Opens a specific configuration of a screen.</summary>
-        public bool Open(LoogaMenuScreenDefinition screen, LoogaMenuScreenConfiguration configuration,
-            UnityEngine.Object requester = null, object payload = null)
+        /// <summary>Opens a specific layout of a screen.</summary>
+        public bool Open(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            Object requester = null,
+            object payload = null)
         {
-            return _menuManager != null && _menuManager.Open(screen, configuration, requester, payload);
+            return _menuManager != null && _menuManager.Open(screen, layout, requester, payload);
         }
 
-        /// <summary>Changes an open screen configuration without adding a back-stack entry.</summary>
-        public bool SetConfiguration(LoogaMenuScreenDefinition screen, LoogaMenuScreenConfiguration configuration,
-            UnityEngine.Object requester = null)
+        /// <summary>Changes an open screen layout without adding a history entry.</summary>
+        public bool SetLayout(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            Object requester = null)
         {
-            return _menuManager != null && _menuManager.SetConfiguration(screen, configuration, requester);
-        }
-
-        /// <summary>Opens one content entry on its owning screen.</summary>
-        public bool OpenContent(LoogaMenuScreenContentEntry entry, UnityEngine.Object requester = null, object payload = null)
-        {
-            return _menuManager != null && _menuManager.OpenContent(entry, requester, payload);
-        }
-
-        /// <summary>
-        /// Opens a content entry by its stable ID, opening the owning screen first if needed.
-        /// </summary>
-        public bool OpenContent(LoogaMenuScreenDefinition screen, string contentEntryId,
-            UnityEngine.Object requester = null, object payload = null)
-        {
-            return _menuManager != null && _menuManager.OpenContent(screen, contentEntryId, requester, payload);
+            return _menuManager != null && _menuManager.SetLayout(screen, layout, requester);
         }
 
         /// <summary>Returns to the previous menu state.</summary>
@@ -150,7 +132,7 @@ namespace LoogaSoft.Menu
             return _menuManager != null && _menuManager.Back();
         }
 
-        /// <summary>Closes all open screens and extension panels.</summary>
+        /// <summary>Closes all open screens.</summary>
         public void CloseAll()
         {
             _menuManager?.CloseAll();
@@ -165,19 +147,13 @@ namespace LoogaSoft.Menu
         private void RegisterPanels()
         {
             foreach (LoogaMenuPanel panel in _scenePanels)
-            {
                 RegisterPanel(panel);
-            }
 
             if (!_registerChildrenOnAwake)
-            {
                 return;
-            }
 
             foreach (LoogaMenuPanel panel in GetComponentsInChildren<LoogaMenuPanel>(true))
-            {
                 RegisterPanel(panel);
-            }
         }
 
         private void RegisterStateProviders()
@@ -185,9 +161,7 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (component is ILoogaStateProvider provider)
-                {
                     provider.RegisterStates(_blackboardWriter);
-                }
             }
         }
 
@@ -196,9 +170,7 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (component is ILoogaStateProvider provider)
-                {
                     provider.UnregisterStates(_blackboardWriter);
-                }
             }
         }
 
@@ -219,9 +191,7 @@ namespace LoogaSoft.Menu
         private void ReleaseOwnedBlackboard()
         {
             if (_ownedBlackboard == null)
-            {
                 return;
-            }
 
             LoogaBlackboardRegistry.ClearActive(_ownedBlackboard);
             _ownedBlackboard = null;
@@ -232,23 +202,17 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponents<MonoBehaviour>())
             {
                 if (component is ILoogaMenuTransitionHandler transitionHandler)
-                {
                     _menuManager.SetTransitionHandler(transitionHandler);
-                }
 
                 if (component is ILoogaMenuAudioHandler audioHandler)
-                {
                     _menuManager.SetAudioHandler(audioHandler);
-                }
             }
         }
 
         private void OnMenuStateChanged(LoogaMenuState state)
         {
             if (!_controlCursor)
-            {
                 return;
-            }
 
             if (state.HasOpenScreens && state.ShowsCursor)
             {
@@ -258,9 +222,7 @@ namespace LoogaSoft.Menu
             }
 
             if (!state.HasOpenScreens)
-            {
                 ApplyClosedCursorState();
-            }
         }
 
         private void ApplyClosedCursorState()

@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace LoogaSoft.Menu
 {
     /// <summary>
-    /// Presents the actions collected by the highest active action-bar extension.
+    /// Presents the actions collected for the active screen and layout.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(CanvasGroup))]
@@ -25,7 +25,7 @@ namespace LoogaSoft.Menu
 
         private readonly List<LoogaMenuActionBarItemView> _items = new();
         private LoogaMenuManager _menuManager;
-        private ILoogaMenuActionBarExtension _extension;
+        private ILoogaMenuActionBar _actionBar;
         private CanvasGroup _canvasGroup;
 
         private void Awake()
@@ -57,10 +57,10 @@ namespace LoogaSoft.Menu
 
         public void Refresh()
         {
-            BindActiveExtension();
-            if (_extension != null)
+            BindActionBar();
+            if (_actionBar != null)
             {
-                _extension.RefreshActions();
+                _actionBar.RefreshActions();
                 return;
             }
 
@@ -87,31 +87,31 @@ namespace LoogaSoft.Menu
                 _menuManager.StateChanged -= OnMenuStateChanged;
             }
 
-            if (_extension != null)
+            if (_actionBar != null)
             {
-                _extension.ActionsChanged -= Render;
+                _actionBar.ActionsChanged -= Render;
             }
 
-            _extension = null;
+            _actionBar = null;
             _menuManager = null;
         }
 
-        private void BindActiveExtension()
+        private void BindActionBar()
         {
-            ILoogaMenuActionBarExtension next = null;
-            _menuManager?.TryGetActiveExtension(out next);
-            if (ReferenceEquals(_extension, next))
+            ILoogaMenuActionBar next = null;
+            _menuManager?.TryGetActionBar(out next);
+            if (ReferenceEquals(_actionBar, next))
                 return;
 
-            if (_extension != null)
+            if (_actionBar != null)
             {
-                _extension.ActionsChanged -= Render;
+                _actionBar.ActionsChanged -= Render;
             }
 
-            _extension = next;
-            if (_extension != null)
+            _actionBar = next;
+            if (_actionBar != null)
             {
-                _extension.ActionsChanged += Render;
+                _actionBar.ActionsChanged += Render;
             }
         }
 
@@ -122,7 +122,7 @@ namespace LoogaSoft.Menu
 
         private void Render()
         {
-            IReadOnlyList<LoogaMenuActionDescriptor> actions = _extension?.Actions;
+            IReadOnlyList<LoogaMenuActionDescriptor> actions = _actionBar?.Actions;
             int count = actions?.Count ?? 0;
             EnsureItemCapacity(count);
 

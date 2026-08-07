@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using LoogaSoft.Menu;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
@@ -9,8 +7,6 @@ namespace LoogaSoft.Menu.Editor
     [CustomPropertyDrawer(typeof(LoogaMenuScreenPanelEntry))]
     public sealed class LoogaMenuScreenPanelEntryDrawer : PropertyDrawer
     {
-        private static readonly Dictionary<string, ReorderableList> ParameterLists = new();
-
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
@@ -24,7 +20,7 @@ namespace LoogaSoft.Menu.Editor
 
             Rect parametersRect = new(position.x, panelRect.yMax + EditorGUIUtility.standardVerticalSpacing,
                 position.width, LoogaMenuStyledListUtility.GetHeight(parameters));
-            LoogaMenuStyledListUtility.Draw(parametersRect, parameters, ParameterLists);
+            LoogaMenuStyledListUtility.Draw(parametersRect, parameters);
 
             EditorGUI.EndProperty();
         }

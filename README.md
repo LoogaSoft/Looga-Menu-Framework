@@ -1,492 +1,137 @@
 # Looga Menu Framework
 
-Looga Menu Framework is an asset-driven UGUI menu framework for reusable panels, composed screens, content entries, blackboard-backed open requirements, input policies, and optional menu audio/transition handlers.
+Looga Menu Framework is an asset-driven UGUI framework for game menus. It uses a small set of explicit concepts so designers can build simple and complex menu flows in the same way.
 
-The package is intentionally project-agnostic. A game provides its own UI scene, panel objects, input bridge, blackboard state providers, and optional visual/audio handlers.
+The package is project-agnostic. A game supplies its UI scene, panel objects, input bridge, blackboard state, and optional presentation handlers.
 
-## Core Concepts
+## Authoring Model
 
-- `LoogaMenuRoot` is the runtime entry point. Put one on the root object of the menu canvas.
-- `LoogaMenuPanelDefinition` is an asset identity for one reusable panel.
-- `LoogaMenuPanel` lives on the actual UGUI panel object and registers that panel with the active root.
-- `LoogaMenuScreenDefinition` describes a screen: default panels, optional content entries, optional extensions, requirements, background behavior, and input policy.
-- `LoogaMenuExtensionDefinition` adds optional behavior to a screen without expanding the manager's core responsibilities.
-- `LoogaMenuScreenContentEntry` describes content that can open from a screen, such as a submenu panel or child screen.
-- `LoogaMenuRuleSet` gates opening through blackboard conditions.
-- `LoogaMenuInputPolicy` describes cursor behavior and which gameplay input categories should be blocked.
+Use these rules when deciding what to create:
 
-## Basic Setup
-
-1. Add `LoogaMenuRoot` to the main UI canvas/root object.
-2. Assign an optional default background and any default extension assets on the root.
-3. Create one `LoogaMenuPanelDefinition` asset for each reusable panel.
-4. Add `LoogaMenuPanel` to each panel object in the UI scene and assign its definition.
-5. Create `LoogaMenuScreenDefinition` assets for major menu flows.
-6. Create one or more owned screen configurations and select the default configuration.
-7. Add panels and extension overrides to each configuration.
-8. Add content entries for submenus or optional panels opened from that screen.
-9. Assign an input policy and open requirements as needed.
-10. Open screens with `LoogaMenuOpenButton`, `LoogaMenuScreenContentReference`, or code.
-
-Panel objects may start disabled in the UI scene. The menu root/manager will show and hide registered panels at runtime.
-
-## Panels
-
-A panel is one reusable UGUI object, such as:
-
-- Pause Menu
-- Loadout
-- Stockpile
-- Raid Container
-- Social Menu
-- Settings
-- Background
-- Action Bar
-
-Each panel object needs:
-
-- A `LoogaMenuPanel` component.
-- A matching `LoogaMenuPanelDefinition` asset.
-- Any project-specific UI scripts required by that panel.
-
-Panel definitions contain display metadata and per-panel toggles such as skipping transitions or open/close sounds.
-
-## Screens
-
-A screen defines one menu flow. An owned `LoogaMenuScreenConfiguration` defines each supported
-layout of that flow. Each screen has an explicit default configuration.
+- A **screen** is a destination in menu history. Opening another screen adds or replaces a history entry.
+- A **layout** is one composition of the same screen. Changing a layout does not add a history entry.
+- A **panel** is one reusable UI region that a layout shows.
+- A **destination** selects a screen, an optional layout, and an open mode.
 
 Examples:
 
-- Pause screen: background, pause panel, action bar.
-- Station inventory screen: background, stockpile panel, loadout panel, action bar.
-- Raid inventory screen: background, loadout panel, action bar.
+- Pause and Settings are separate screens because Back must return from Settings to Pause.
+- Faction Selection, Shop Buy, Shop Sell, Missions, and Jobs are layouts of one Faction Services screen.
+- Loadout and Backpack can remain one panel when they always appear and close together.
+- A confirmation dialog is normally an overlay screen because it has its own focus and Back behavior.
 
-Screen definition fields:
+Do not split a stable UI region into several panels only because it contains several child objects. Make a separate panel when the region needs independent reuse, visibility, transition, or contextual actions.
 
-- `Configurations`: owned layouts that can be opened or previewed independently.
-- `Default Configuration`: the layout used when the caller does not select one.
-- `Content Entries`: panels or screens that can be opened from this screen.
-- `Extensions`: optional screen behaviors such as navigation and action-bar presentation.
-- `Background Panel Mode`: use root default, override, or none.
-- `Open Requirements`: optional rule set that must pass before opening.
-- `Input Policy`: cursor and gameplay input blocking behavior.
-- `Missing Panel Behavior`: what to do if a referenced panel is not registered.
-- `Close As Group On Back`: closes the whole screen group when backing out.
-- `Close Existing Screens`: closes already-open screens before this screen opens.
+## Basic Setup
 
-Configuration fields:
+1. Add `LoogaMenuRoot` to the main menu canvas or root object.
+2. Assign the default background panel and action-bar settings.
+3. Create one `LoogaMenuPanelDefinition` for each reusable panel.
+4. Add `LoogaMenuPanel` to each authored panel object and assign its definition.
+5. Create a `LoogaMenuScreenDefinition` for each menu-history destination.
+6. Create owned `LoogaMenuScreenLayout` sub-assets for the screen's supported compositions.
+7. Add the required panel definitions to each layout.
+8. Select the screen's default layout.
+9. Add typed navigation destinations where the screen needs navigation entries.
+10. Open the screen through `LoogaMenuDestination`, `LoogaMenuOpenButton`, input routing, or code.
 
-- `Stable Id`: a persistent identifier for code and serialized references.
-- `Display Name`: the designer-facing layout name.
-- `Panels`: the panels composed by this layout.
-- `Extensions`: layout-specific replacements for screen or root extensions.
-- `Initial Navigation Entry Id`: the navigation entry selected when the layout opens.
+Panel objects may start disabled. The menu root registers them and controls their active state.
 
-Use configurations for layouts such as faction selection, buy, and sell within one shop screen.
-Changing the active configuration does not add another screen to the back stack.
+## Screens
 
-## Content Entries
+`LoogaMenuScreenDefinition` owns the behavior shared by one menu destination:
 
-Content entries are used when a screen can open extra content from within itself.
+- Layouts and the default layout.
+- Primary and secondary navigation layers.
+- Action-bar behavior.
+- Background behavior.
+- Open requirements.
+- Input policy.
+- Default open mode.
+- Missing-panel behavior.
 
-Example: a pause screen can include content entries for:
+Create a new screen when the menu needs an independent history entry. Back returns to the previous screen.
 
-- Social Menu panel.
-- Settings screen.
-- Confirm Quit panel.
+## Layouts
 
-Each content entry has:
+`LoogaMenuScreenLayout` is an owned sub-asset of a screen. It defines:
 
-- Target type: `Panel` or `Screen`.
-- Target asset: the panel or screen to open.
-- Open mode.
-- Back behavior.
-- Optional open requirements.
-- Optional blackboard parameters.
+- The panels shown together.
+- Optional navigation overrides.
+- An optional action-bar override.
 
-Content entries use hidden stable IDs. Designers see display names, while code stores stable IDs so references do not break if list order changes.
+Use layouts for states of the same destination. For example, a Faction Services screen can own Faction Selection, Shop Buy, Shop Sell, Missions, and Jobs layouts. Changing among these layouts keeps one screen-history entry.
 
-Use `LoogaMenuScreenContentReference` for inspector-friendly references to a content entry.
+Every screen has one default layout. A destination that does not select a layout uses that default.
 
-## Optional Screen Extensions
+## Panels
 
-Extensions keep specialized behavior out of `LoogaMenuManager`. Each extension definition creates
-one screen-scoped runtime instance when its screen opens. The runtime can show panels, contribute
-panels to transitions, use blackboard parameters, and expose a focused public contract to UI
-presenters.
+A panel is one reusable UGUI region, such as:
 
-Assign reusable defaults on `LoogaMenuRoot`. An extension on a screen replaces an inherited extension
-with the same `ExtensionId`. Assign a disabled extension with the same ID when one screen needs to
-suppress an inherited default.
+- Stockpile.
+- Loadout and Backpack.
+- Faction selection.
+- Shop buy list.
+- Settings.
+- Shared background.
+- Shared action bar.
 
-Built-in extensions:
+Each authored panel object needs a `LoogaMenuPanel` and a matching `LoogaMenuPanelDefinition`.
 
-- `LoogaMenuActionBarExtension`: presents an assigned panel while the screen is open.
-- `LoogaMenuNavigationExtension`: owns sibling navigation entries and their selected state.
+Panels can implement `ILoogaMenuActionProvider` to contribute contextual action-bar commands. Call `LoogaMenuPanel.NotifyActionsChanged()` when those commands change.
 
-Projects can add extensions by deriving from `LoogaMenuExtensionDefinition` and returning an
-`ILoogaMenuExtensionRuntime`. The manager requires no changes for additional extension types.
+## Typed Destinations
 
-Navigation and action bars are authored exclusively through extension assets. Shared behavior belongs
-in the root default-extension list; screen-specific behavior belongs in that screen's extension list.
+`LoogaMenuDestination` replaces string IDs and indirect content-entry lists. It contains:
 
-## Screen Navigation
+- A required screen.
+- An optional layout owned by that screen.
+- An open mode.
 
-Use screen navigation for sibling sections such as `Buy` and `Sell`, or `Inventory` and
-`Progression`. Each navigation entry defines a display name and the reusable panels that should
-be visible while it is selected. The screen's default panels remain active, so one entry can also
-compose a panel that physically lives elsewhere in the UI hierarchy.
+Use the same destination type in buttons, input bindings, and navigation entries. The inspector limits layout selection to layouts owned by the selected screen.
 
-Create a `LoogaMenuNavigationExtension`, configure its entries, and assign it to the screen's
-`Extensions` list. A project-specific navigation bar should call
-`TryGetActiveExtension<ILoogaMenuNavigationExtension>` and bind directly to that extension rather than
-maintaining a second button-to-panel list.
+## Navigation
 
-Disable `Activate On Open` when a screen must first show a selection page. Retrieve the
-`ILoogaMenuNavigationExtension`, call `SetActive(true)` after selection, then select the initial
-entry.
+Screens contribute navigation entries to shared presenter objects. A navigation entry contains a display name, a typed destination, and optional requirements.
 
-## Action Bars
+Two explicit placements are available:
 
-Action bars are optional screen extensions. They provide a common Back command and collect
-contextual commands from the panels currently composed by the active screen.
+- `Primary` for major sections, such as Inventory and Faction Area.
+- `Secondary` for local choices, such as Buy and Sell.
 
-1. Create a `LoogaMenuActionBarExtension` asset.
-2. Assign the panel that contains the action-bar visuals.
-3. Assign an optional Input System action for Back and configure its label/order.
-4. Add the extension to a screen or to the root's default extensions.
-5. Add `LoogaMenuActionBarView` to the action-bar panel and assign its item parent and template.
-6. Implement `ILoogaMenuActionProvider` on components that contribute contextual commands.
+Add `LoogaMenuNavigationBar` or another `ILoogaMenuNavigationBar` presenter to the authored navigation UI. Each presenter selects one placement and displays the active screen or layout entries for that placement.
 
-Providers are discovered within their owning `LoogaMenuPanel`, cached, and queried only while that
-panel is relevant. Dynamic providers should call `LoogaMenuPanel.NotifyActionsChanged()` after their
-available actions or enabled state changes.
+A layout can replace a screen navigation layer at the same placement. Use this when only some layouts need a local navigation row.
 
-```csharp
-using System.Collections.Generic;
-using LoogaSoft.Menu;
-using UnityEngine;
+## Action Bar
 
-public sealed class InventoryActionProvider : MonoBehaviour, ILoogaMenuActionProvider
-{
-    [SerializeField] private LoogaMenuPanel _panel;
+The action bar is an explicit framework feature. `LoogaMenuActionBarSettings` controls the shared panel and Back command. A screen or layout can inherit, replace, or hide it.
 
-    public void CollectMenuActions(List<LoogaMenuActionDescriptor> actions)
-    {
-        actions.Add(new LoogaMenuActionDescriptor(
-            "inventory.split",
-            "Split Stack",
-            "Ctrl+RMB",
-            SplitHoveredStack,
-            CanSplitHoveredStack(),
-            20));
-    }
-
-    private void OnHoveredStackChanged()
-    {
-        _panel.NotifyActionsChanged();
-    }
-
-    private bool CanSplitHoveredStack() => true;
-    private void SplitHoveredStack() { }
-}
-```
-
-`LoogaMenuActionDescriptor` can also receive an `InputActionReference`. Its display binding is
-resolved from the active Input System binding, with a fallback string for unavailable bindings.
-Projects with authored presentation or transition behavior can implement their own view and bind to
-`ILoogaMenuActionBarExtension` instead of using `LoogaMenuActionBarView`.
+Add an `ILoogaMenuActionBar` presenter to the authored action-bar UI. Visible panels contribute contextual commands through `ILoogaMenuActionProvider`.
 
 ## Open Modes
 
-`Replace`
-: Close current content in the flow and show the new target.
+- `Replace` closes the current destination and opens the new destination.
+- `AddAlongside` keeps current content visible and adds the destination.
+- `Overlay` opens the destination above the current focus and Back target.
 
-`AddAlongside`
-: Add the new target while keeping existing visible content active.
+Use `Overlay` for dialogs and temporary submenus that must close before the parent screen.
 
-`Overlay`
-: Show the new target as the top focus/back target. Use this for modals, popups, and submenus that should receive back input first.
+## Requirements And Input
 
-## Back Behavior
+`LoogaMenuRuleSet` checks typed blackboard conditions before a destination opens. `LoogaMenuInputPolicy` controls cursor behavior and blocked gameplay input categories while the screen is active.
 
-`CloseThisEntry`
-: Close only the content entry.
+Keep game-specific rules and input bridges outside the package. The package exposes typed assets and runtime contracts for those integrations.
 
-`ReturnToParent`
-: Close the entry and return focus to the parent screen.
+## Previewing
 
-`CloseParent`
-: Close the entry and its parent screen.
+Open the Menu Preview window from the LoogaSoft menu. Each screen appears once. Screens with several layouts can expand to preview each layout. Right-click a preview button to select and ping its screen definition.
 
-`CloseWholeFlow`
-: Close the full menu flow.
+## Design Guidance
 
-Use `CloseWholeFlow` for cases like opening Social from Pause where pressing back should leave both Social and Pause.
-
-## Missing Panel Behavior
-
-`Ignore`
-: Open what can be opened and ignore missing panel references.
-
-`Warn`
-: Open what can be opened, but log a warning for missing panels.
-
-`BlockOpen`
-: Do not open the screen if any required panel is missing.
-
-Use `Warn` while setting up UI scenes and `BlockOpen` for stricter production flows.
-
-## Input Policies
-
-`LoogaMenuInputPolicy` controls cursor behavior and gameplay input blocking.
-
-Presets:
-
-- `None`: do not block gameplay input.
-- `BlockAllGameplay`: pause-style behavior.
-- `InventoryMovementOnly`: allow limited movement, block camera/combat/equipment.
-- `CombatAndEquipment`: block combat/equipment while keeping broader control.
-- `Custom`: manually select blocked categories.
-
-The project should read the active policy from menu state and apply it to its own input system.
-
-## Blackboard Rules
-
-Rules use blackboard keys so menu conditions are data-driven and not string-based.
-
-Typical keys:
-
-- `Is Raid Scene`
-- `Is Station Scene`
-- `Has Stockpile Access`
-- `Has Container Access`
-- `Is Player Alive`
-
-Runtime systems write values:
-
-```csharp
-using LoogaSoft.Blackboard;
-using LoogaSoft.Menu;
-
-public sealed class SceneMenuStateWriter : MonoBehaviour
-{
-    [SerializeField] private LoogaBlackboardKey _isRaidScene;
-
-    private void Start()
-    {
-        LoogaMenuRoot.Active.BlackboardWriter.SetBool(_isRaidScene, true);
-    }
-}
-```
-
-Screen definitions and content entries can then reference rule sets that evaluate those values.
-
-## Opening Menus From Code
-
-Use `LoogaMenuRoot` as the main API.
-
-```csharp
-using LoogaSoft.Menu;
-using UnityEngine;
-
-public sealed class PauseMenuOpener : MonoBehaviour
-{
-    [SerializeField] private LoogaMenuScreenDefinition _pauseScreen;
-
-    public void OpenPause()
-    {
-        LoogaMenuRoot.Active.Open(_pauseScreen, this);
-    }
-}
-```
-
-Prefer a serialized root reference if the object already has one:
-
-```csharp
-[SerializeField] private LoogaMenuRoot _menuRoot;
-[SerializeField] private LoogaMenuScreenDefinition _inventoryScreen;
-
-private void OpenInventory()
-{
-    _menuRoot.Open(_inventoryScreen, this);
-}
-```
-
-Open a content entry by stable ID:
-
-```csharp
-_menuRoot.OpenContent(_raidScreen, "content-entry-stable-id", this, payload);
-```
-
-Open a content entry through an inspector reference:
-
-```csharp
-[SerializeField] private LoogaMenuScreenContentReference _raidContainerContent;
-
-private void OpenRaidContainer(object containerPayload)
-{
-    _raidContainerContent.Open(LoogaMenuRoot.Active, this, containerPayload);
-}
-```
-
-Back and close:
-
-```csharp
-LoogaMenuRoot.Active.Back();
-LoogaMenuRoot.Active.CloseAll();
-```
-
-## Button Setup
-
-Use `LoogaMenuOpenButton` on UGUI buttons.
-
-For a normal screen button:
-
-1. Add `LoogaMenuOpenButton` to the button.
-2. Set target to `Screen`.
-3. Assign the screen definition.
-4. Optionally assign a menu root. If unset, it uses `LoogaMenuRoot.Active`.
-
-For a submenu/content button:
-
-1. Add `LoogaMenuOpenButton` to the button.
-2. Set target to `Screen Content Entry`.
-3. Assign the owning screen.
-4. Select the content entry from the dropdown.
-
-Use `LoogaMenuBackButton` for standard back/cancel buttons. It calls the active root's `Back()`.
-
-## Input Router Setup
-
-Use `LoogaMenuInputRouter` for player/controller input that opens menus directly.
-
-Typical setup:
-
-1. Add `LoogaMenuInputRouter` to the local player prefab or an input-owned object.
-2. Leave `Menu Root` empty if the router should use `LoogaMenuRoot.Active`.
-3. Leave `Manage Action Enabled State` off when a `PlayerInput` or project input bootstrapper already enables actions.
-4. Add one binding per menu input.
-5. Assign the `Input Action Reference`.
-6. Choose the trigger phase, usually `Started` for keyboard/menu toggles.
-7. Choose the target: screen, screen content entry, back, or close all.
-8. Choose the open behavior.
-9. Optionally assign requirements to gate the binding through blackboard rules.
-
-Example bindings:
-
-- Inventory key in station: target station inventory screen, requirements require station scene.
-- Inventory key in raid: target raid inventory screen, requirements require raid scene.
-- Social key: target social screen, behavior `Toggle`.
-- Escape/back key: target `Back`.
-
-Multiple bindings can use the same input action. They are evaluated in list order, and only the first successful binding is handled for that frame.
-
-## Parameters And Payloads
-
-Use blackboard parameters when a screen/content entry should push simple typed values into state as it opens.
-
-Use the `payload` object parameter when the caller needs to pass a runtime object, such as:
-
-- A loot container instance.
-- A selected item.
-- A target entity.
-
-Keep payloads project-specific and cast them only inside project-specific panel scripts.
-
-## Custom Panel Reactions
-
-Use content-entry blackboard parameters for simple mode switches, such as opening the same stockpile panel in normal or attachment-selection mode. Panels can read those values from the active blackboard or receive a richer runtime `payload` from the caller when object references are needed.
-
-## Transition And Audio Hooks
-
-Projects can provide transition/audio handlers to the menu manager.
-
-```csharp
-public sealed class MyMenuTransitions : MonoBehaviour, ILoogaMenuTransitionHandler
-{
-    public void PlayOpen(LoogaMenuScreenDefinition screen, LoogaMenuPanel[] panels)
-    {
-        // Play open animation.
-    }
-
-    public void PlayClose(LoogaMenuScreenDefinition screen, LoogaMenuPanel[] panels, Action onComplete)
-    {
-        // Play close animation, then call onComplete.
-        onComplete?.Invoke();
-    }
-}
-```
-
-```csharp
-public sealed class MyMenuAudio : MonoBehaviour, ILoogaMenuAudioHandler
-{
-    public void PlayOpen(LoogaMenuScreenDefinition screen, LoogaMenuPanel[] panels)
-    {
-        // Play menu open sound.
-    }
-
-    public void PlayClose(LoogaMenuScreenDefinition screen, LoogaMenuPanel[] panels)
-    {
-        // Play menu close sound.
-    }
-}
-```
-
-The framework owns the menu state. Project handlers own presentation.
-
-## Public Runtime API
-
-Common calls:
-
-```csharp
-LoogaMenuRoot.Active.Open(screenDefinition);
-LoogaMenuRoot.Active.OpenContent(screenDefinition, contentEntryId);
-LoogaMenuRoot.Active.Back();
-LoogaMenuRoot.Active.CloseAll();
-```
-
-State registry:
-
-```csharp
-LoogaMenuRoot.Active.BlackboardWriter.SetBool(key, true);
-LoogaMenuRoot.Active.BlackboardWriter.SetInt(key, 2);
-LoogaMenuRoot.Active.BlackboardWriter.SetFloat(key, 1.5f);
-LoogaMenuRoot.Active.BlackboardWriter.SetString(key, "Station");
-LoogaMenuRoot.Active.BlackboardWriter.RemoveValue(key);
-```
-
-Usually avoid calling `LoogaMenuPanel.Show()`, `Hide()`, or `SetCovered()` directly. Let `LoogaMenuRoot` and `LoogaMenuManager` control panel visibility.
-
-## Recommended Workflows
-
-For a new menu panel:
-
-1. Build the UGUI panel object in the UI scene.
-2. Add `LoogaMenuPanel`.
-3. Create and assign a panel definition.
-4. Add it to a screen as a default panel or content entry.
-
-For a new screen:
-
-1. Create a screen definition.
-2. Add default panels.
-3. Choose input policy.
-4. Choose background/action bar behavior.
-5. Add open requirements if needed.
-6. Add content entries for nested panels/screens.
-
-For a context-sensitive menu:
-
-1. Create blackboard keys for the needed state.
-2. Write those values from project code.
-3. Create a rule set with the required conditions.
-4. Assign the rule set to the screen or content entry.
-
-## Notes
-
-- Avoid list-index references for content. Use content entry references or stable IDs.
-- Keep panels reusable and project-specific behavior on project scripts.
-- Keep screen definitions focused on menu composition, requirements, and input policy.
-- Use the blackboard for simple state and requirements. Use payloads for runtime object references.
+- Prefer one obvious authoring path.
+- Use screens for history, layouts for composition, and panels for reusable regions.
+- Use typed destinations instead of string identifiers.
+- Keep navigation and action bars shared; screens contribute data instead of duplicating their UI.
+- Keep layout changes out of the Back stack.
+- Keep game-specific view logic in the game project.

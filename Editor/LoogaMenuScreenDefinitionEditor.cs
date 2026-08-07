@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Editor;
-using LoogaSoft.Menu;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,120 +8,151 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
-        protected override void DrawBeforeProperties()
+        public override void OnInspectorGUI()
         {
-            LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
-                "A screen composes reusable panels and evaluates rule assets before it opens.");
-        }
+            serializedObject.Update();
 
-        protected override void DrawAfterProperties()
-        {
-            DrawConfigurations((LoogaMenuScreenDefinition)target);
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
+
+            LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
+                "A screen is one menu destination. Its layouts change composition without adding history.");
+            DrawIdentity();
+            DrawLayouts((LoogaMenuScreenDefinition)target);
+            DrawProperty("_navigation", "Navigation");
+            DrawProperty("_actionBar", "Action Bar");
+            DrawProperty("_backgroundPanelMode", "Background");
+            if ((LoogaMenuPanelReferenceMode)serializedObject.FindProperty("_backgroundPanelMode").enumValueIndex
+                == LoogaMenuPanelReferenceMode.Override)
+            {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanel"));
+            }
+
+            DrawProperty("_rules", "Behavior");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
+            serializedObject.ApplyModifiedProperties();
+
             DrawValidation((LoogaMenuScreenDefinition)target);
         }
 
-        private void DrawConfigurations(LoogaMenuScreenDefinition screen)
+        private void DrawIdentity()
         {
-            serializedObject.Update();
-            SerializedProperty configurations = serializedObject.FindProperty("_configurations");
-            SerializedProperty defaultConfiguration = serializedObject.FindProperty("_defaultConfiguration");
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
+            LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
+        }
+
+        private void DrawLayouts(LoogaMenuScreenDefinition screen)
+        {
+            SerializedProperty layouts = serializedObject.FindProperty("_layouts");
+            SerializedProperty defaultLayout = serializedObject.FindProperty("_defaultLayout");
 
             EditorGUILayout.Space(6f);
-            EditorGUILayout.LabelField("Configurations", EditorStyles.boldLabel);
-
-            if (configurations.arraySize == 0)
+            EditorGUILayout.LabelField("Layouts", EditorStyles.boldLabel);
+            if (layouts.arraySize == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "This screen still uses its legacy panel composition. Migrate it to create an owned default configuration.",
+                    "Add a layout before opening this screen. A layout owns the screen's panel composition.",
                     MessageType.Info);
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("_panels"), new GUIContent("Legacy Panels"), true);
             }
 
-            for (int i = 0; i < configurations.arraySize; i++)
+            for (int i = 0; i < layouts.arraySize; i++)
             {
-                SerializedProperty element = configurations.GetArrayElementAtIndex(i);
-                LoogaMenuScreenConfiguration configuration = element.objectReferenceValue as LoogaMenuScreenConfiguration;
-
+                SerializedProperty element = layouts.GetArrayElementAtIndex(i);
+                LoogaMenuScreenLayout layout = element.objectReferenceValue as LoogaMenuScreenLayout;
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.ObjectField(configuration, typeof(LoogaMenuScreenConfiguration), false);
+                    EditorGUILayout.ObjectField(layout, typeof(LoogaMenuScreenLayout), false);
 
-                    bool isDefault = defaultConfiguration.objectReferenceValue == configuration;
-                    using (new EditorGUI.DisabledScope(isDefault || configuration == null))
+                    bool isDefault = defaultLayout.objectReferenceValue == layout;
+                    using (new EditorGUI.DisabledScope(isDefault || layout == null))
                     {
                         if (GUILayout.Button(isDefault ? "Default" : "Set Default", GUILayout.Width(78f)))
-                            defaultConfiguration.objectReferenceValue = configuration;
+                            defaultLayout.objectReferenceValue = layout;
                     }
 
                     if (GUILayout.Button("-", GUILayout.Width(22f)))
                     {
-                        RemoveConfiguration(configurations, defaultConfiguration, i, configuration);
-                        break;
+                        RemoveLayout(layouts, defaultLayout, i, layout);
+                        return;
                     }
                 }
             }
 
-            if (GUILayout.Button(configurations.arraySize == 0
-                    ? "Migrate Current Composition"
-                    : "Add Configuration"))
-            {
-                CreateConfiguration(screen, configurations, defaultConfiguration, configurations.arraySize == 0);
-            }
-
-            serializedObject.ApplyModifiedProperties();
+            if (GUILayout.Button("Add Layout"))
+                CreateLayout(screen, layouts, defaultLayout);
         }
 
-        private void CreateConfiguration(LoogaMenuScreenDefinition screen, SerializedProperty configurations,
-            SerializedProperty defaultConfiguration, bool copyLegacyPanels)
+        private void CreateLayout(
+            LoogaMenuScreenDefinition screen,
+            SerializedProperty layouts,
+            SerializedProperty defaultLayout)
         {
             string assetPath = AssetDatabase.GetAssetPath(screen);
             if (string.IsNullOrWhiteSpace(assetPath))
             {
                 EditorUtility.DisplayDialog("Save Screen First",
-                    "Save the screen as an asset before adding configurations.", "OK");
+                    "Save the screen asset before adding layouts.", "OK");
                 return;
             }
 
-            LoogaMenuScreenConfiguration configuration = CreateInstance<LoogaMenuScreenConfiguration>();
-            configuration.name = ObjectNames.GetUniqueName(
-                System.Array.ConvertAll(screen.Configurations, value => value != null ? value.name : string.Empty),
-                copyLegacyPanels ? "Default" : "Configuration");
-            AssetDatabase.AddObjectToAsset(configuration, screen);
-            Undo.RegisterCreatedObjectUndo(configuration, "Create Menu Screen Configuration");
+            LoogaMenuScreenLayout layout = CreateInstance<LoogaMenuScreenLayout>();
+            LoogaMenuScreenLayout[] existingLayouts = screen.Layouts ?? System.Array.Empty<LoogaMenuScreenLayout>();
+            layout.name = ObjectNames.GetUniqueName(
+                System.Array.ConvertAll(existingLayouts, value => value != null ? value.name : string.Empty),
+                layouts.arraySize == 0 ? "Default" : "Layout");
+            AssetDatabase.AddObjectToAsset(layout, screen);
+            Undo.RegisterCreatedObjectUndo(layout, "Create Menu Screen Layout");
 
-            SerializedObject configurationObject = new(configuration);
-            configurationObject.FindProperty("_stableId").stringValue = System.Guid.NewGuid().ToString("N");
-            configurationObject.FindProperty("_displayName").stringValue = configuration.name;
-            if (copyLegacyPanels)
-                configurationObject.CopyFromSerializedProperty(serializedObject.FindProperty("_panels"));
-            configurationObject.ApplyModifiedPropertiesWithoutUndo();
+            SerializedObject layoutObject = new(layout);
+            layoutObject.FindProperty("_displayName").stringValue = layout.name;
+            layoutObject.ApplyModifiedPropertiesWithoutUndo();
 
-            int index = configurations.arraySize;
-            configurations.InsertArrayElementAtIndex(index);
-            configurations.GetArrayElementAtIndex(index).objectReferenceValue = configuration;
-            if (defaultConfiguration.objectReferenceValue == null)
-                defaultConfiguration.objectReferenceValue = configuration;
+            int index = layouts.arraySize;
+            layouts.InsertArrayElementAtIndex(index);
+            layouts.GetArrayElementAtIndex(index).objectReferenceValue = layout;
+            if (defaultLayout.objectReferenceValue == null)
+                defaultLayout.objectReferenceValue = layout;
 
+            serializedObject.ApplyModifiedProperties();
             EditorUtility.SetDirty(screen);
-            EditorUtility.SetDirty(configuration);
+            EditorUtility.SetDirty(layout);
             AssetDatabase.SaveAssets();
+            GUIUtility.ExitGUI();
         }
 
-        private static void RemoveConfiguration(SerializedProperty configurations,
-            SerializedProperty defaultConfiguration, int index, LoogaMenuScreenConfiguration configuration)
+        private void RemoveLayout(
+            SerializedProperty layouts,
+            SerializedProperty defaultLayout,
+            int index,
+            LoogaMenuScreenLayout layout)
         {
-            SerializedProperty element = configurations.GetArrayElementAtIndex(index);
-            if (element.propertyType == SerializedPropertyType.ObjectReference)
-                element.objectReferenceValue = null;
-
-            configurations.DeleteArrayElementAtIndex(index);
-            if (defaultConfiguration.objectReferenceValue == configuration)
-                defaultConfiguration.objectReferenceValue = configurations.arraySize > 0
-                    ? configurations.GetArrayElementAtIndex(0).objectReferenceValue
+            SerializedProperty element = layouts.GetArrayElementAtIndex(index);
+            element.objectReferenceValue = null;
+            layouts.DeleteArrayElementAtIndex(index);
+            if (defaultLayout.objectReferenceValue == layout)
+            {
+                defaultLayout.objectReferenceValue = layouts.arraySize > 0
+                    ? layouts.GetArrayElementAtIndex(0).objectReferenceValue
                     : null;
+            }
 
-            if (configuration != null && AssetDatabase.IsSubAsset(configuration))
-                Undo.DestroyObjectImmediate(configuration);
+            serializedObject.ApplyModifiedProperties();
+            if (layout != null && AssetDatabase.IsSubAsset(layout))
+                Undo.DestroyObjectImmediate(layout);
+
+            AssetDatabase.SaveAssets();
+            GUIUtility.ExitGUI();
+        }
+
+        private void DrawProperty(string propertyName, string heading)
+        {
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField(heading, EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty(propertyName), true);
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)
@@ -130,72 +160,46 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.Space(6f);
             EditorGUILayout.LabelField("Validation", EditorStyles.boldLabel);
 
+            bool hasIssue = false;
+            if (screen.Layouts == null || screen.Layouts.Length == 0)
+            {
+                hasIssue = true;
+                EditorGUILayout.HelpBox("The screen has no layout.", MessageType.Error);
+            }
+
             LoogaMenuRoot root = LoogaMenuEditorUtility.FindMenuRoot();
             if (root == null)
             {
                 EditorGUILayout.HelpBox(
-                    "Scene panel validation is unavailable because no LoogaMenuRoot is loaded. Open the UI scene, or any scene containing a LoogaMenuRoot, to validate panel references against live scene objects.",
+                    "Open a scene with a LoogaMenuRoot to validate panel registrations.",
                     MessageType.Info);
                 return;
             }
 
-            HashSet<LoogaMenuPanelDefinition> panels = new();
-            bool hasIssue = false;
-            ValidatePanel("Background", screen.GetBackgroundPanel(root.DefaultBackgroundPanel), panels, ref hasIssue);
-
-            LoogaMenuScreenConfiguration configuration = screen.DefaultConfiguration;
-            foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(configuration))
+            foreach (LoogaMenuScreenLayout layout in screen.Layouts ?? System.Array.Empty<LoogaMenuScreenLayout>())
             {
-                if (entry == null)
+                if (layout == null)
                     continue;
 
-                ValidatePanel("Panel", entry.Panel, panels, ref hasIssue);
-            }
-
-            List<LoogaMenuExtensionDefinition> extensions = new();
-            LoogaMenuEditorUtility.ResolveExtensions(root, screen, configuration, extensions);
-            foreach (LoogaMenuExtensionDefinition extension in extensions)
-            {
-                if (extension == null || !extension.Enabled)
-                    continue;
-
-                if (extension is LoogaMenuActionBarExtension actionBar)
+                HashSet<LoogaMenuPanelDefinition> panels = new();
+                ValidatePanel($"{layout.DisplayName} background",
+                    screen.GetBackgroundPanel(root.DefaultBackgroundPanel), panels, ref hasIssue);
+                foreach (LoogaMenuScreenPanelEntry entry in layout.Panels)
                 {
-                    ValidatePanel("Action Bar", actionBar.Panel, panels, ref hasIssue);
-                    continue;
-                }
-
-                if (extension is not LoogaMenuNavigationExtension navigation)
-                    continue;
-
-                foreach (LoogaMenuNavigationEntry navigationEntry in navigation.Entries)
-                {
-                    if (navigationEntry == null)
-                        continue;
-
-                    // Navigation entries are mutually exclusive, so the same reusable panel may
-                    // intentionally appear in more than one entry. Only duplicates within the
-                    // active composition are invalid.
-                    HashSet<LoogaMenuPanelDefinition> navigationPanels = new(panels);
-                    foreach (LoogaMenuScreenPanelEntry entry in navigationEntry.Panels)
-                    {
-                        if (entry == null)
-                            continue;
-
-                        ValidatePanel($"Navigation '{navigationEntry.DisplayName}'", entry.Panel,
-                            navigationPanels, ref hasIssue);
-                    }
+                    if (entry != null)
+                        ValidatePanel(layout.DisplayName, entry.Panel, panels, ref hasIssue);
                 }
             }
 
             if (!hasIssue)
-            {
                 EditorGUILayout.HelpBox("No obvious screen setup issues found.", MessageType.None);
-            }
         }
 
-        private static void ValidatePanel(string label, LoogaMenuPanelDefinition panel,
-            HashSet<LoogaMenuPanelDefinition> panels, ref bool hasIssue)
+        private static void ValidatePanel(
+            string label,
+            LoogaMenuPanelDefinition panel,
+            HashSet<LoogaMenuPanelDefinition> panels,
+            ref bool hasIssue)
         {
             if (panel == null)
                 return;
@@ -203,13 +207,16 @@ namespace LoogaSoft.Menu.Editor
             if (!panels.Add(panel))
             {
                 hasIssue = true;
-                EditorGUILayout.HelpBox($"{label} panel '{panel.name}' is referenced more than once.", MessageType.Warning);
+                EditorGUILayout.HelpBox(
+                    $"{label} references panel '{panel.name}' more than once.",
+                    MessageType.Warning);
             }
 
             if (!LoogaMenuEditorUtility.TryFindPanel(panel, out _))
             {
                 hasIssue = true;
-                EditorGUILayout.HelpBox($"{label} panel '{panel.name}' has no matching LoogaMenuPanel in the open scene.",
+                EditorGUILayout.HelpBox(
+                    $"{label} panel '{panel.name}' has no matching scene component.",
                     MessageType.Info);
             }
         }

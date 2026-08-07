@@ -4,25 +4,12 @@ using UnityEngine.UI;
 
 namespace LoogaSoft.Menu
 {
-    public enum LoogaMenuOpenButtonTarget
-    {
-        Screen = 0,
-        ScreenContentEntry = 1
-    }
-
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Button))]
     [AddComponentMenu("LoogaSoft/Menu/Open Menu Button")]
     public sealed class LoogaMenuOpenButton : MonoBehaviour
     {
-        [SerializeField] private LoogaMenuOpenButtonTarget _target = LoogaMenuOpenButtonTarget.Screen;
-        [ShowIf(nameof(_target), (int)LoogaMenuOpenButtonTarget.Screen)]
-        [SerializeField] private LoogaMenuScreenDefinition _screen;
-        [ShowIf(nameof(_target), (int)LoogaMenuOpenButtonTarget.Screen)]
-        [SerializeField] private LoogaMenuScreenConfiguration _configuration;
-        [ShowIf(nameof(_target), (int)LoogaMenuOpenButtonTarget.ScreenContentEntry)]
-        [SerializeField] private LoogaMenuScreenDefinition _contentScreen;
-        [SerializeField, HideInInspector] private string _contentEntryId;
+        [SerializeField] private LoogaMenuDestination _destination = new();
 
         [SerializeField] private bool _useActiveMenuRoot = true;
         [HideIf(nameof(_useActiveMenuRoot))]
@@ -39,27 +26,12 @@ namespace LoogaSoft.Menu
         private void OnDestroy()
         {
             if (_button != null)
-            {
                 _button.onClick.RemoveListener(Open);
-            }
         }
 
         private void Open()
         {
-            LoogaMenuRoot root = ResolveMenuRoot();
-            if (root == null)
-                return;
-
-            if (_target == LoogaMenuOpenButtonTarget.ScreenContentEntry)
-            {
-                root.OpenContent(_contentScreen, _contentEntryId, this);
-                return;
-            }
-
-            if (_screen != null)
-            {
-                root.Open(_screen, _configuration, this);
-            }
+            _destination?.Open(ResolveMenuRoot(), this);
         }
 
         private LoogaMenuRoot ResolveMenuRoot()

@@ -1,10 +1,11 @@
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
 {
+    [InitializeOnLoad]
     internal static class LoogaMenuStyledListUtility
     {
         private const float HeaderSizeWidth = 50f;
@@ -14,9 +15,17 @@ namespace LoogaSoft.Menu.Editor
         private const float ElementHighlightLeftExpansion = 20f;
         private const float ElementHighlightRightExpansion = 6f;
 
-        private static readonly Dictionary<string, ReorderableList> SharedListCache = new();
+        private static readonly System.Collections.Generic.Dictionary<string, ReorderableList> ListCache = new();
 
-        public static void Draw(Rect position, SerializedProperty property, Dictionary<string, ReorderableList> cache)
+        static LoogaMenuStyledListUtility()
+        {
+            Selection.selectionChanged += ClearCache;
+            EditorApplication.projectChanged += ClearCache;
+            Undo.undoRedoPerformed += ClearCache;
+            AssemblyReloadEvents.beforeAssemblyReload += ClearCache;
+        }
+
+        public static void Draw(Rect position, SerializedProperty property)
         {
             if (property == null)
                 return;
@@ -58,7 +67,7 @@ namespace LoogaSoft.Menu.Editor
             if (!property.isExpanded)
                 return;
 
-            ReorderableList list = GetList(property, cache);
+            ReorderableList list = GetList(property);
             Rect listRect = new(
                 position.x,
                 headerRect.yMax + EditorGUIUtility.standardVerticalSpacing,
@@ -73,16 +82,17 @@ namespace LoogaSoft.Menu.Editor
             if (property == null || !property.isExpanded)
                 return height;
 
-            ReorderableList list = GetList(property, null);
+            ReorderableList list = GetList(property);
             return height + EditorGUIUtility.standardVerticalSpacing + list.GetHeight();
         }
 
-        private static ReorderableList GetList(SerializedProperty property, Dictionary<string, ReorderableList> cache)
+        private static ReorderableList GetList(SerializedProperty property)
         {
-            Dictionary<string, ReorderableList> targetCache = cache ?? SharedListCache;
-            string key = $"{property.serializedObject.targetObject.GetInstanceID()}:{property.propertyPath}";
+            SerializedObject serializedObject = property.serializedObject;
+            string key = $"{serializedObject.targetObject.GetInstanceID()}:"
+                + $"{RuntimeHelpers.GetHashCode(serializedObject)}:{property.propertyPath}";
 
-            if (targetCache.TryGetValue(key, out ReorderableList list))
+            if (ListCache.TryGetValue(key, out ReorderableList list))
                 return list;
 
             list = new ReorderableList(property.serializedObject, property, true, false, true, true)
@@ -91,8 +101,13 @@ namespace LoogaSoft.Menu.Editor
                 drawElementCallback = (rect, index, isActive, _) => DrawElement(rect, property, index, isActive),
                 elementHeightCallback = index => GetElementHeight(property, index)
             };
-            targetCache[key] = list;
+            ListCache[key] = list;
             return list;
+        }
+
+        private static void ClearCache()
+        {
+            ListCache.Clear();
         }
 
         private static void DrawElement(Rect rect, SerializedProperty property, int index, bool isActive)
