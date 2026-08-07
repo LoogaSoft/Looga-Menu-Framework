@@ -10,6 +10,7 @@ namespace LoogaSoft.Menu
     /// </summary>
     public interface ILoogaMenuNavigationExtension
     {
+        string Channel { get; }
         IReadOnlyList<LoogaMenuNavigationEntry> Entries { get; }
         int SelectedIndex { get; }
         bool IsActive { get; }
@@ -24,26 +25,36 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuNavigationExtension : LoogaMenuExtensionDefinition
     {
         public const string Id = "LoogaSoft.Menu.Navigation";
+        public const string DefaultChannel = "Default";
 
+        [SerializeField, Tooltip("Navigation bars use this channel to select one navigation group from the active screen.")]
+        private string _channel = DefaultChannel;
         [SerializeField] private bool _activateOnOpen = true;
         [SerializeField] private LoogaMenuNavigationEntry[] _entries = Array.Empty<LoogaMenuNavigationEntry>();
 
-        public override string ExtensionId => Id;
+        public override string ExtensionId => $"{Id}.{ResolveChannel(_channel)}";
+        public string Channel => ResolveChannel(_channel);
         public bool ActivateOnOpen => _activateOnOpen;
         public LoogaMenuNavigationEntry[] Entries => _entries;
 
         public override ILoogaMenuExtensionRuntime CreateRuntime()
         {
-            return new LoogaMenuNavigationExtensionRuntime(_entries, _activateOnOpen);
+            return new LoogaMenuNavigationExtensionRuntime(Channel, _entries, _activateOnOpen);
         }
 
         private void OnValidate()
         {
+            _channel = ResolveChannel(_channel);
             _entries ??= Array.Empty<LoogaMenuNavigationEntry>();
             foreach (LoogaMenuNavigationEntry entry in _entries)
             {
                 entry?.EnsureStableId();
             }
+        }
+
+        private static string ResolveChannel(string channel)
+        {
+            return string.IsNullOrWhiteSpace(channel) ? DefaultChannel : channel.Trim();
         }
     }
 
@@ -57,13 +68,18 @@ namespace LoogaSoft.Menu
         private int _selectedIndex;
 
         public LoogaMenuNavigationExtensionRuntime(
+            string channel,
             LoogaMenuNavigationEntry[] entries,
             bool activateOnOpen)
         {
+            Channel = string.IsNullOrWhiteSpace(channel)
+                ? LoogaMenuNavigationExtension.DefaultChannel
+                : channel;
             _entries = entries ?? Array.Empty<LoogaMenuNavigationEntry>();
             _activateOnOpen = activateOnOpen;
         }
 
+        public string Channel { get; }
         public IReadOnlyList<LoogaMenuNavigationEntry> Entries => _entries;
         public int SelectedIndex => _entries.Length > 0 ? _selectedIndex : -1;
         public bool IsActive { get; private set; }
@@ -91,6 +107,10 @@ namespace LoogaSoft.Menu
 
             if (_selectedIndex == index)
                 return true;
+
+            LoogaMenuNavigationEntry nextEntry = _entries[index];
+            if (nextEntry?.Configuration != null)
+                return _context.SetConfiguration(nextEntry.Configuration);
 
             LoogaMenuNavigationEntry previousEntry = CurrentEntry;
             _selectedIndex = index;
@@ -215,6 +235,16 @@ namespace LoogaSoft.Menu
 
         private int FindInitialIndex(string stableId)
         {
+            LoogaMenuScreenConfiguration configuration = _context?.Configuration;
+            if (configuration != null)
+            {
+                for (int i = 0; i < _entries.Length; i++)
+                {
+                    if (_entries[i]?.Configuration == configuration)
+                        return i;
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(stableId))
             {
                 for (int i = 0; i < _entries.Length; i++)

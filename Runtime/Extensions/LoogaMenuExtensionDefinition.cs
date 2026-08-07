@@ -102,6 +102,12 @@ namespace LoogaSoft.Menu
             _manager.RefreshAfterExtensionChange();
         }
 
+        /// <summary>Changes the configuration of the extension's open screen.</summary>
+        public bool SetConfiguration(LoogaMenuScreenConfiguration configuration)
+        {
+            return _manager.SetConfiguration(Screen, configuration);
+        }
+
         public bool Back()
         {
             return _manager.Back();

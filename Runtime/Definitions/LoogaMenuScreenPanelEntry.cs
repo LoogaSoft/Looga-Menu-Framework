@@ -74,10 +74,13 @@ namespace LoogaSoft.Menu
     {
         [SerializeField, HideInInspector] private string _stableId;
         [SerializeField] private string _displayName;
+        [SerializeField, Tooltip("Optional configuration to open instead of changing panels in the current configuration.")]
+        private LoogaMenuScreenConfiguration _configuration;
         [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
 
         public string StableId => _stableId;
         public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? "Navigation Entry" : _displayName;
+        public LoogaMenuScreenConfiguration Configuration => _configuration;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
 
         internal void EnsureStableId()

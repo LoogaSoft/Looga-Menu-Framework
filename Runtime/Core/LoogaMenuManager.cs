@@ -56,6 +56,34 @@ namespace LoogaSoft.Menu
             return TryGetTopExtension(out extension);
         }
 
+        /// <summary>Finds the highest active extension that satisfies the supplied match.</summary>
+        public bool TryGetActiveExtension<TExtension>(
+            Predicate<TExtension> match,
+            out TExtension extension)
+            where TExtension : class
+        {
+            if (match == null)
+                return TryGetTopExtension(out extension);
+
+            for (int i = _openScreens.Count - 1; i >= 0; i--)
+            {
+                if (!_extensions.TryGetValue(_openScreens[i], out List<ILoogaMenuExtensionRuntime> runtimes))
+                    continue;
+
+                for (int runtimeIndex = 0; runtimeIndex < runtimes.Count; runtimeIndex++)
+                {
+                    if (runtimes[runtimeIndex] is TExtension candidate && match(candidate))
+                    {
+                        extension = candidate;
+                        return true;
+                    }
+                }
+            }
+
+            extension = null;
+            return false;
+        }
+
         public void SetTransitionHandler(ILoogaMenuTransitionHandler transitionHandler)
         {
             _transitionHandler = transitionHandler;
