@@ -19,8 +19,10 @@ namespace LoogaSoft.Menu.Editor
                 "A screen is one menu destination. Its layouts change composition without adding history.");
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
             DrawLayouts((LoogaMenuScreenDefinition)target);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_navigation"), true);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_actionBar"), true);
+            LoogaMenuScreenAuthoringGUI.DrawNavigation(
+                serializedObject.FindProperty("_navigation"),
+                supportsInheritance: false);
+            LoogaMenuScreenAuthoringGUI.DrawActionBar(serializedObject.FindProperty("_actionBar"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanelMode"));
             if ((LoogaMenuPanelReferenceMode)serializedObject.FindProperty("_backgroundPanelMode").enumValueIndex
                 == LoogaMenuPanelReferenceMode.Override)
