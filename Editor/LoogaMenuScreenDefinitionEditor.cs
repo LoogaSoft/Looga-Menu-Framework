@@ -8,6 +8,14 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
+        private LoogaMenuScreenLayout _selectedLayout;
+        private SerializedObject _selectedLayoutObject;
+
+        private void OnEnable()
+        {
+            SelectLayout(((LoogaMenuScreenDefinition)target)?.ResolveLayout(null));
+        }
+
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
@@ -44,6 +52,9 @@ namespace LoogaSoft.Menu.Editor
             SerializedProperty layouts = serializedObject.FindProperty("_layouts");
             SerializedProperty defaultLayout = serializedObject.FindProperty("_defaultLayout");
 
+            if (_selectedLayout == null || !screen.ContainsLayout(_selectedLayout))
+                SelectLayout(screen.ResolveLayout(null));
+
             EditorGUILayout.Space(6f);
             EditorGUILayout.LabelField("Layouts", EditorStyles.boldLabel);
             if (layouts.arraySize == 0)
@@ -57,18 +68,47 @@ namespace LoogaSoft.Menu.Editor
             {
                 SerializedProperty element = layouts.GetArrayElementAtIndex(i);
                 LoogaMenuScreenLayout layout = element.objectReferenceValue as LoogaMenuScreenLayout;
-                using (new EditorGUILayout.HorizontalScope())
+                using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
                 {
-                    EditorGUILayout.ObjectField(layout, typeof(LoogaMenuScreenLayout), false);
+                    bool selected = layout != null && layout == _selectedLayout;
+                    GUIContent rowContent = new(
+                        layout != null ? layout.name : "Missing Layout",
+                        BuildLayoutSummary(layout));
+                    bool nextSelected = GUILayout.Toggle(
+                        selected,
+                        rowContent,
+                        EditorStyles.toolbarButton,
+                        GUILayout.MinWidth(80f),
+                        GUILayout.ExpandWidth(true));
+                    if (nextSelected && !selected)
+                        SelectLayout(layout);
 
                     bool isDefault = defaultLayout.objectReferenceValue == layout;
                     using (new EditorGUI.DisabledScope(isDefault || layout == null))
                     {
-                        if (GUILayout.Button(isDefault ? "Default" : "Set Default", GUILayout.Width(78f)))
+                        if (GUILayout.Button(
+                                isDefault ? "Default" : "Make Default",
+                                EditorStyles.toolbarButton,
+                                GUILayout.Width(86f)))
                             defaultLayout.objectReferenceValue = layout;
                     }
 
-                    if (GUILayout.Button("-", GUILayout.Width(22f)))
+                    using (new EditorGUI.DisabledScope(layout == null))
+                    {
+                        if (GUILayout.Button(
+                                new GUIContent("Duplicate", "Create a copy of this layout."),
+                                EditorStyles.toolbarButton,
+                                GUILayout.Width(66f)))
+                        {
+                            DuplicateLayout(screen, layouts, layout);
+                            return;
+                        }
+                    }
+
+                    if (GUILayout.Button(
+                            new GUIContent("-", "Remove this layout."),
+                            EditorStyles.toolbarButton,
+                            GUILayout.Width(22f)))
                     {
                         RemoveLayout(layouts, defaultLayout, i, layout);
                         return;
@@ -78,6 +118,8 @@ namespace LoogaSoft.Menu.Editor
 
             if (GUILayout.Button("Add Layout"))
                 CreateLayout(screen, layouts, defaultLayout);
+
+            DrawSelectedLayout(screen);
         }
 
         private void CreateLayout(
@@ -111,6 +153,33 @@ namespace LoogaSoft.Menu.Editor
             EditorUtility.SetDirty(screen);
             EditorUtility.SetDirty(layout);
             AssetDatabase.SaveAssets();
+            SelectLayout(layout);
+            GUIUtility.ExitGUI();
+        }
+
+        private void DuplicateLayout(
+            LoogaMenuScreenDefinition screen,
+            SerializedProperty layouts,
+            LoogaMenuScreenLayout source)
+        {
+            string assetPath = AssetDatabase.GetAssetPath(screen);
+            if (source == null || string.IsNullOrWhiteSpace(assetPath))
+                return;
+
+            LoogaMenuScreenLayout duplicate = CreateInstance<LoogaMenuScreenLayout>();
+            EditorUtility.CopySerialized(source, duplicate);
+            duplicate.name = GetUniqueLayoutName(screen, $"{source.name} Copy");
+            AssetDatabase.AddObjectToAsset(duplicate, screen);
+            Undo.RegisterCreatedObjectUndo(duplicate, "Duplicate Menu Screen Layout");
+
+            int index = layouts.arraySize;
+            layouts.InsertArrayElementAtIndex(index);
+            layouts.GetArrayElementAtIndex(index).objectReferenceValue = duplicate;
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(screen);
+            EditorUtility.SetDirty(duplicate);
+            AssetDatabase.SaveAssets();
+            SelectLayout(duplicate);
             GUIUtility.ExitGUI();
         }
 
@@ -120,6 +189,14 @@ namespace LoogaSoft.Menu.Editor
             int index,
             LoogaMenuScreenLayout layout)
         {
+            LoogaMenuScreenLayout nextSelection = null;
+            if (_selectedLayout == layout && layouts.arraySize > 1)
+            {
+                int nextIndex = index < layouts.arraySize - 1 ? index + 1 : index - 1;
+                nextSelection = layouts.GetArrayElementAtIndex(nextIndex).objectReferenceValue
+                    as LoogaMenuScreenLayout;
+            }
+
             SerializedProperty element = layouts.GetArrayElementAtIndex(index);
             element.objectReferenceValue = null;
             layouts.DeleteArrayElementAtIndex(index);
@@ -135,7 +212,80 @@ namespace LoogaSoft.Menu.Editor
                 Undo.DestroyObjectImmediate(layout);
 
             AssetDatabase.SaveAssets();
+            SelectLayout(nextSelection);
             GUIUtility.ExitGUI();
+        }
+
+        private void DrawSelectedLayout(LoogaMenuScreenDefinition screen)
+        {
+            if (_selectedLayout == null || _selectedLayoutObject == null)
+                return;
+
+            EditorGUILayout.Space(4f);
+            LoogaGUILayout.BoxLarge("Selected Layout", () =>
+            {
+                EditorGUI.BeginChangeCheck();
+                string nextName = EditorGUILayout.DelayedTextField("Name", _selectedLayout.name);
+                if (EditorGUI.EndChangeCheck())
+                    RenameLayout(screen, _selectedLayout, nextName);
+
+                _selectedLayoutObject.UpdateIfRequiredOrScript();
+                LoogaMenuScreenLayoutEditor.DrawBody(_selectedLayoutObject);
+                _selectedLayoutObject.ApplyModifiedProperties();
+            });
+        }
+
+        private void SelectLayout(LoogaMenuScreenLayout layout)
+        {
+            if (_selectedLayout == layout && (_selectedLayoutObject != null || layout == null))
+                return;
+
+            _selectedLayout = layout;
+            _selectedLayoutObject = layout != null ? new SerializedObject(layout) : null;
+        }
+
+        private static void RenameLayout(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            string requestedName)
+        {
+            string fallbackName = string.IsNullOrWhiteSpace(layout.name) ? "Layout" : layout.name;
+            string trimmedName = string.IsNullOrWhiteSpace(requestedName)
+                ? fallbackName
+                : requestedName.Trim();
+            string uniqueName = GetUniqueLayoutName(screen, trimmedName, layout);
+            if (layout.name == uniqueName)
+                return;
+
+            Undo.RecordObject(layout, "Rename Menu Screen Layout");
+            layout.name = uniqueName;
+            EditorUtility.SetDirty(layout);
+            AssetDatabase.SaveAssets();
+        }
+
+        private static string GetUniqueLayoutName(
+            LoogaMenuScreenDefinition screen,
+            string requestedName,
+            LoogaMenuScreenLayout excludedLayout = null)
+        {
+            List<string> names = new();
+            foreach (LoogaMenuScreenLayout layout in screen.Layouts ?? System.Array.Empty<LoogaMenuScreenLayout>())
+            {
+                if (layout != null && layout != excludedLayout)
+                    names.Add(layout.name);
+            }
+
+            return ObjectNames.GetUniqueName(names.ToArray(), requestedName);
+        }
+
+        private static string BuildLayoutSummary(LoogaMenuScreenLayout layout)
+        {
+            if (layout == null)
+                return "This layout reference is missing.";
+
+            int panelCount = layout.Panels?.Length ?? 0;
+            int navigationCount = layout.NavigationOverrides?.Length ?? 0;
+            return $"{panelCount} panel(s), {navigationCount} navigation override(s).";
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)
