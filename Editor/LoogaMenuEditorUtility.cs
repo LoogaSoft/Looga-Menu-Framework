@@ -51,20 +51,5 @@ namespace LoogaSoft.Menu.Editor
             if (!string.IsNullOrWhiteSpace(helpText))
                 EditorGUILayout.HelpBox(helpText, MessageType.Info);
         }
-
-        public static void DrawDisplayName(SerializedObject serializedObject)
-        {
-            SerializedProperty useCustomDisplayName = serializedObject.FindProperty("_useCustomDisplayName");
-            SerializedProperty displayName = serializedObject.FindProperty("_displayName");
-            if (useCustomDisplayName == null || displayName == null)
-                return;
-
-            if (!useCustomDisplayName.boolValue)
-                displayName.stringValue = serializedObject.targetObject.name;
-
-            EditorGUILayout.PropertyField(useCustomDisplayName);
-            using (new EditorGUI.DisabledScope(!useCustomDisplayName.boolValue))
-                EditorGUILayout.PropertyField(displayName);
-        }
     }
 }

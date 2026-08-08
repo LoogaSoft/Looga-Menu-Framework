@@ -10,8 +10,7 @@ namespace LoogaSoft.Menu
     [MovedFrom(true, "LoogaSoft.Menu", "LoogaSoft.Menu.Runtime", "LoogaMenuScreenConfiguration")]
     public sealed class LoogaMenuScreenLayout : ScriptableObject
     {
-        [SerializeField] private bool _useCustomDisplayName;
-        [SerializeField] private string _displayName;
+        [Header("Identity")]
         [SerializeField, TextArea] private string _description;
 
         [Header("Composition")]
@@ -19,14 +18,14 @@ namespace LoogaSoft.Menu
 
         [Header("Navigation")]
         [Tooltip("Layers with the same placement replace the screen layer while this layout is active.")]
+        [InspectorName("Layer Overrides")]
         [SerializeField] private LoogaMenuNavigationLayer[] _navigationOverrides = Array.Empty<LoogaMenuNavigationLayer>();
 
         [Header("Action Bar")]
+        [InspectorName("Override")]
         [SerializeField] private LoogaMenuActionBarOverride _actionBar;
 
-        public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
-            ? _displayName
-            : name;
+        public string DisplayName => name;
         public string Description => _description;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
         public LoogaMenuNavigationLayer[] NavigationOverrides => _navigationOverrides;
@@ -34,9 +33,6 @@ namespace LoogaSoft.Menu
 
         private void OnValidate()
         {
-            if (!_useCustomDisplayName)
-                _displayName = name;
-
             _panels ??= Array.Empty<LoogaMenuScreenPanelEntry>();
             _navigationOverrides ??= Array.Empty<LoogaMenuNavigationLayer>();
         }

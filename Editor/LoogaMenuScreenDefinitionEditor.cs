@@ -17,32 +17,24 @@ namespace LoogaSoft.Menu.Editor
 
             LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
                 "A screen is one menu destination. Its layouts change composition without adding history.");
-            DrawIdentity();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
             DrawLayouts((LoogaMenuScreenDefinition)target);
-            DrawProperty("_navigation", "Navigation");
-            DrawProperty("_actionBar", "Action Bar");
-            DrawProperty("_backgroundPanelMode", "Background");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_navigation"), true);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_actionBar"), true);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanelMode"));
             if ((LoogaMenuPanelReferenceMode)serializedObject.FindProperty("_backgroundPanelMode").enumValueIndex
                 == LoogaMenuPanelReferenceMode.Override)
             {
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanel"));
             }
 
-            DrawProperty("_rules", "Behavior");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
             serializedObject.ApplyModifiedProperties();
 
             DrawValidation((LoogaMenuScreenDefinition)target);
-        }
-
-        private void DrawIdentity()
-        {
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
-            LoogaMenuEditorUtility.DrawDisplayName(serializedObject);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
         }
 
         private void DrawLayouts(LoogaMenuScreenDefinition screen)
@@ -107,10 +99,6 @@ namespace LoogaSoft.Menu.Editor
             AssetDatabase.AddObjectToAsset(layout, screen);
             Undo.RegisterCreatedObjectUndo(layout, "Create Menu Screen Layout");
 
-            SerializedObject layoutObject = new(layout);
-            layoutObject.FindProperty("_displayName").stringValue = layout.name;
-            layoutObject.ApplyModifiedPropertiesWithoutUndo();
-
             int index = layouts.arraySize;
             layouts.InsertArrayElementAtIndex(index);
             layouts.GetArrayElementAtIndex(index).objectReferenceValue = layout;
@@ -146,13 +134,6 @@ namespace LoogaSoft.Menu.Editor
 
             AssetDatabase.SaveAssets();
             GUIUtility.ExitGUI();
-        }
-
-        private void DrawProperty(string propertyName, string heading)
-        {
-            EditorGUILayout.Space(6f);
-            EditorGUILayout.LabelField(heading, EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(propertyName), true);
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)

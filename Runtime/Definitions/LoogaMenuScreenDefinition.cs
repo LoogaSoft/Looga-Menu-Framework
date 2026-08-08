@@ -19,9 +19,6 @@ namespace LoogaSoft.Menu
     public sealed class LoogaMenuScreenDefinition : ScriptableObject
     {
         [Header("Identity")]
-        [SerializeField] private bool _useCustomDisplayName;
-        [ShowIf(nameof(_useCustomDisplayName))]
-        [SerializeField] private string _displayName;
         [SerializeField, TextArea] private string _description;
 
         [Header("Layouts")]
@@ -32,9 +29,11 @@ namespace LoogaSoft.Menu
 
         [Header("Navigation")]
         [Tooltip("Entries contributed to the shared navigation presenter while this screen is active.")]
+        [InspectorName("Layers")]
         [SerializeField] private LoogaMenuNavigationLayer[] _navigation = Array.Empty<LoogaMenuNavigationLayer>();
 
         [Header("Action Bar")]
+        [InspectorName("Override")]
         [SerializeField] private LoogaMenuActionBarOverride _actionBar;
 
         [Header("Background")]
@@ -50,9 +49,7 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuOpenMode _defaultOpenMode = LoogaMenuOpenMode.Replace;
         [SerializeField] private LoogaMenuMissingPanelBehavior _missingPanelBehavior = LoogaMenuMissingPanelBehavior.Warn;
 
-        public string DisplayName => _useCustomDisplayName && !string.IsNullOrWhiteSpace(_displayName)
-            ? _displayName
-            : name;
+        public string DisplayName => name;
         public string Description => _description;
         public LoogaMenuScreenLayout[] Layouts => _layouts;
         public LoogaMenuScreenLayout DefaultLayout => ResolveLayout(null);
@@ -121,9 +118,6 @@ namespace LoogaSoft.Menu
 
         private void OnValidate()
         {
-            if (!_useCustomDisplayName)
-                _displayName = name;
-
             _layouts ??= Array.Empty<LoogaMenuScreenLayout>();
             _navigation ??= Array.Empty<LoogaMenuNavigationLayer>();
             if (_defaultLayout != null && !ContainsLayout(_defaultLayout))
