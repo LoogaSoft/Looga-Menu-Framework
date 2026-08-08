@@ -10,6 +10,7 @@ namespace LoogaSoft.Menu.Editor
     {
         private LoogaMenuScreenLayout _selectedLayout;
         private SerializedObject _selectedLayoutObject;
+        private bool _selectedLayoutExpanded = true;
 
         private void OnEnable()
         {
@@ -222,7 +223,10 @@ namespace LoogaSoft.Menu.Editor
                 return;
 
             EditorGUILayout.Space(4f);
-            LoogaGUILayout.BoxLarge("Selected Layout", () =>
+            _selectedLayoutExpanded = LoogaGUILayout.FoldoutSmall(
+                new GUIContent($"Layout Details: {_selectedLayout.name}"),
+                _selectedLayoutExpanded,
+                () =>
             {
                 EditorGUI.BeginChangeCheck();
                 string nextName = EditorGUILayout.DelayedTextField("Name", _selectedLayout.name);
