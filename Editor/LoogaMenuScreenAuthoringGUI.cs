@@ -97,22 +97,12 @@ namespace LoogaSoft.Menu.Editor
             bool enabled = layer != null && layer.FindPropertyRelative("_visible").boolValue;
             bool expanded = enabled && layer.isExpanded;
 
-            Rect row = EditorGUILayout.GetControlRect();
-            Rect toggleRect = new(row.x, row.y, 18f, row.height);
-            Rect foldoutRect = new(
-                toggleRect.xMax + 2f,
-                row.y,
-                Mathf.Max(0f, row.xMax - toggleRect.xMax - 2f),
-                row.height);
-            GUIContent content = new(
-                title,
-                "Enable this navigation area and edit the entries it contributes.");
-            bool nextEnabled = EditorGUI.Toggle(toggleRect, enabled);
-            bool nextExpanded = expanded;
-            if (nextEnabled)
-                nextExpanded = EditorGUI.Foldout(foldoutRect, expanded, content, true);
-            else
-                EditorGUI.LabelField(foldoutRect, content);
+            bool nextExpanded = LoogaGUILayout.ToggleFoldoutLarge(
+                new GUIContent(title, "Enable this navigation area and edit the entries it contributes."),
+                enabled,
+                expanded,
+                () => DrawNavigationEntries(layer),
+                out bool nextEnabled);
 
             if (nextEnabled != enabled)
             {
@@ -126,12 +116,6 @@ namespace LoogaSoft.Menu.Editor
 
             if (layer != null)
                 layer.isExpanded = nextExpanded;
-
-            if (nextEnabled && nextExpanded && layer != null)
-            {
-                using (new EditorGUI.IndentLevelScope())
-                    DrawNavigationEntries(layer);
-            }
         }
 
         private static void DrawLayoutNavigationPlacement(
