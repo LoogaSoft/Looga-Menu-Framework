@@ -223,7 +223,7 @@ namespace LoogaSoft.Menu.Editor
                 return;
 
             EditorGUILayout.Space(4f);
-            _selectedLayoutExpanded = LoogaGUILayout.FoldoutSmall(
+            _selectedLayoutExpanded = LoogaGUILayout.FoldoutLarge(
                 new GUIContent($"Layout Details: {_selectedLayout.name}"),
                 _selectedLayoutExpanded,
                 () =>
@@ -234,7 +234,9 @@ namespace LoogaSoft.Menu.Editor
                     RenameLayout(screen, _selectedLayout, nextName);
 
                 _selectedLayoutObject.UpdateIfRequiredOrScript();
-                LoogaMenuScreenLayoutEditor.DrawBody(_selectedLayoutObject);
+                LoogaMenuScreenLayoutEditor.DrawBody(
+                    _selectedLayoutObject,
+                    propertyName => DrawLoogaProperty(_selectedLayoutObject, propertyName));
                 _selectedLayoutObject.ApplyModifiedProperties();
             });
         }

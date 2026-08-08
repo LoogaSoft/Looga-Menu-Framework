@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
 
@@ -14,7 +15,8 @@ namespace LoogaSoft.Menu
         [SerializeField, TextArea] private string _description;
 
         [Header("Composition")]
-        [SerializeField] private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
+        [SerializeField, LoogaList]
+        private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
 
         [Header("Navigation")]
         [Tooltip("Layers with the same placement replace the screen layer while this layout is active.")]

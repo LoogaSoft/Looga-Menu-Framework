@@ -97,7 +97,7 @@ namespace LoogaSoft.Menu.Editor
             bool enabled = layer != null && layer.FindPropertyRelative("_visible").boolValue;
             bool expanded = enabled && layer.isExpanded;
 
-            bool nextExpanded = LoogaGUILayout.ToggleFoldoutSmall(
+            bool nextExpanded = LoogaGUILayout.ToggleFoldoutLarge(
                 new GUIContent(title, "Enable this navigation area and edit the entries it contributes."),
                 enabled,
                 expanded,

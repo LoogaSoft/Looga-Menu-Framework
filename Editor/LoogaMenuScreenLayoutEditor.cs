@@ -1,3 +1,4 @@
+using System;
 using LoogaSoft.Inspector.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -16,7 +17,7 @@ namespace LoogaSoft.Menu.Editor
 
             LoogaMenuEditorUtility.DrawDefinitionHeader("Screen Layout",
                 "A layout defines one panel composition within its owning screen. Layout changes do not add menu history.");
-            DrawBody(serializedObject);
+            DrawBody(serializedObject, propertyName => DrawLoogaProperty(propertyName));
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -25,10 +26,19 @@ namespace LoogaSoft.Menu.Editor
         /// Draws the editable layout fields without creating a nested editor instance.
         /// Screen inspectors use this method for their selected-layout detail view.
         /// </summary>
-        internal static void DrawBody(SerializedObject layoutObject)
+        internal static void DrawBody(SerializedObject layoutObject, Action<string> drawProperty = null)
         {
-            EditorGUILayout.PropertyField(layoutObject.FindProperty("_description"));
-            EditorGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
+            if (drawProperty != null)
+            {
+                drawProperty("_description");
+                drawProperty("_panels");
+            }
+            else
+            {
+                EditorGUILayout.PropertyField(layoutObject.FindProperty("_description"));
+                EditorGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
+            }
+
             LoogaMenuScreenAuthoringGUI.DrawNavigation(
                 layoutObject.FindProperty("_navigationOverrides"),
                 supportsInheritance: true);
