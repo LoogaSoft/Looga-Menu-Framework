@@ -15,8 +15,6 @@ namespace LoogaSoft.Menu.Editor
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
 
-            LoogaMenuEditorUtility.DrawDefinitionHeader("Screen Layout",
-                "A layout defines one panel composition within its owning screen. Layout changes do not add menu history.");
             DrawBody(serializedObject, propertyName => DrawLoogaProperty(propertyName));
 
             serializedObject.ApplyModifiedProperties();

@@ -8,9 +8,12 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
+        private static readonly string[] InspectorTabs = { "Settings", "Layouts" };
+
         private LoogaMenuScreenLayout _selectedLayout;
         private SerializedObject _selectedLayoutObject;
         private bool _selectedLayoutExpanded = true;
+        private int _selectedTab;
 
         private void OnEnable()
         {
@@ -24,10 +27,24 @@ namespace LoogaSoft.Menu.Editor
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
 
-            LoogaMenuEditorUtility.DrawDefinitionHeader("Menu Screen",
-                "A screen is one menu destination. Its layouts change composition without adding history.");
+            _selectedTab = LoogaGUILayout.Tabs(
+                _selectedTab,
+                InspectorTabs,
+                $"{nameof(LoogaMenuScreenDefinitionEditor)}_{target.GetInstanceID()}");
+
+            if (_selectedTab == 1)
+                DrawLayouts((LoogaMenuScreenDefinition)target);
+            else
+                DrawSettings();
+
+            serializedObject.ApplyModifiedProperties();
+            if (_selectedTab == 0)
+                DrawValidation((LoogaMenuScreenDefinition)target);
+        }
+
+        private void DrawSettings()
+        {
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
-            DrawLayouts((LoogaMenuScreenDefinition)target);
             LoogaMenuScreenAuthoringGUI.DrawNavigation(
                 serializedObject.FindProperty("_navigation"),
                 supportsInheritance: false);
@@ -43,9 +60,6 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
-            serializedObject.ApplyModifiedProperties();
-
-            DrawValidation((LoogaMenuScreenDefinition)target);
         }
 
         private void DrawLayouts(LoogaMenuScreenDefinition screen)

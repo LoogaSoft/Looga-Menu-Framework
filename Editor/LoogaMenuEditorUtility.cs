@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
@@ -42,14 +41,6 @@ namespace LoogaSoft.Menu.Editor
 
             panel = null;
             return false;
-        }
-
-        public static void DrawDefinitionHeader(string title, string helpText)
-        {
-            EditorGUILayout.Space(2f);
-            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
-            if (!string.IsNullOrWhiteSpace(helpText))
-                EditorGUILayout.HelpBox(helpText, MessageType.Info);
         }
     }
 }

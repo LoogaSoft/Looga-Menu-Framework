@@ -10,8 +10,8 @@ namespace LoogaSoft.Menu.Editor
     /// </summary>
     internal static class LoogaMenuScreenAuthoringGUI
     {
-        private static readonly string[] LayoutNavigationModes = { "Inherit", "Override", "Hidden" };
-        private static readonly string[] ActionBarModes = { "Inherit", "Override", "Hidden" };
+        private static readonly string[] LayoutNavigationModes = { "Inherit", "Override", "Hide" };
+        private static readonly string[] ActionBarModes = { "Inherit", "Override", "Hide" };
 
         public static void DrawNavigation(SerializedProperty layers, bool supportsInheritance)
         {
@@ -84,7 +84,7 @@ namespace LoogaSoft.Menu.Editor
                 return;
             }
 
-            LoogaGUILayout.BoxSmall(title, () => DrawLayoutNavigationPlacement(layers, placement));
+            DrawLayoutNavigationPlacement(layers, placement, title);
         }
 
         private static void DrawScreenNavigationPlacement(
@@ -97,12 +97,22 @@ namespace LoogaSoft.Menu.Editor
             bool enabled = layer != null && layer.FindPropertyRelative("_visible").boolValue;
             bool expanded = enabled && layer.isExpanded;
 
-            bool nextExpanded = LoogaGUILayout.ToggleFoldoutLarge(
-                new GUIContent(title, "Enable this navigation area and edit the entries it contributes."),
-                enabled,
-                expanded,
-                () => DrawNavigationEntries(layer),
-                out bool nextEnabled);
+            Rect row = EditorGUILayout.GetControlRect();
+            Rect toggleRect = new(row.x, row.y, 18f, row.height);
+            Rect foldoutRect = new(
+                toggleRect.xMax + 2f,
+                row.y,
+                Mathf.Max(0f, row.xMax - toggleRect.xMax - 2f),
+                row.height);
+            GUIContent content = new(
+                title,
+                "Enable this navigation area and edit the entries it contributes.");
+            bool nextEnabled = EditorGUI.Toggle(toggleRect, enabled);
+            bool nextExpanded = expanded;
+            if (nextEnabled)
+                nextExpanded = EditorGUI.Foldout(foldoutRect, expanded, content, true);
+            else
+                EditorGUI.LabelField(foldoutRect, content);
 
             if (nextEnabled != enabled)
             {
@@ -116,12 +126,21 @@ namespace LoogaSoft.Menu.Editor
 
             if (layer != null)
                 layer.isExpanded = nextExpanded;
+
+            if (nextEnabled && nextExpanded && layer != null)
+            {
+                using (new EditorGUI.IndentLevelScope())
+                    DrawNavigationEntries(layer);
+            }
         }
 
         private static void DrawLayoutNavigationPlacement(
             SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement)
+            LoogaMenuNavigationPlacement placement,
+            string title)
         {
+            EditorGUILayout.LabelField(title, EditorStyles.label);
+
             int layerIndex = FindLayer(layers, placement);
             SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
             int mode = ResolveNavigationMode(layer, true);
@@ -134,7 +153,12 @@ namespace LoogaSoft.Menu.Editor
                 layer = ApplyNavigationMode(layers, layerIndex, placement, true, nextMode);
 
             if (nextMode == 1 && layer != null)
-                DrawNavigationEntries(layer);
+            {
+                using (new EditorGUI.IndentLevelScope())
+                    DrawNavigationEntries(layer);
+            }
+
+            EditorGUILayout.Space(2f);
         }
 
         private static void DrawNavigationEntries(SerializedProperty layer)

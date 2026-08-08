@@ -17,7 +17,7 @@ namespace LoogaSoft.Menu
     {
         Inherit = 0,
         Override = 1,
-        Hidden = 2
+        Hide = 2
     }
 
     [Serializable]

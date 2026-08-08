@@ -253,7 +253,7 @@ namespace LoogaSoft.Menu
             if (actionBar == null || actionBar.Mode == LoogaMenuActionBarMode.Inherit)
                 return true;
 
-            if (actionBar.Mode == LoogaMenuActionBarMode.Hidden)
+            if (actionBar.Mode == LoogaMenuActionBarMode.Hide)
                 return false;
 
             settings = actionBar.Settings;
