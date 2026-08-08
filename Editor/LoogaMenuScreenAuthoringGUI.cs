@@ -40,14 +40,14 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.Space(2f);
             LoogaGUILayout.BoxSmall("Action Bar View", () =>
             {
-                EditorGUILayout.PropertyField(settings.FindPropertyRelative("_panel"), new GUIContent("Panel"));
+                LoogaGUILayout.PropertyField(settings.FindPropertyRelative("_panel"), new GUIContent("Panel"));
             });
 
             LoogaGUILayout.BoxSmall("Back Action", () => DrawBackAction(settings));
             LoogaGUILayout.BoxSmall("Context Actions", () =>
             {
                 SerializedProperty includeCovered = settings.FindPropertyRelative("_includeCoveredPanels");
-                EditorGUILayout.PropertyField(includeCovered, new GUIContent(
+                LoogaGUILayout.PropertyField(includeCovered, new GUIContent(
                     "Include Covered Panels",
                     "Include actions from panels that remain open beneath the active panel."));
                 EditorGUILayout.LabelField(
@@ -61,8 +61,8 @@ namespace LoogaSoft.Menu.Editor
                 advanced.isExpanded,
                 () =>
                 {
-                    EditorGUILayout.PropertyField(advanced, new GUIContent("Back Binding Fallback"));
-                    EditorGUILayout.PropertyField(
+                    LoogaGUILayout.PropertyField(advanced, new GUIContent("Back Binding Fallback"));
+                    LoogaGUILayout.PropertyField(
                         settings.FindPropertyRelative("_backSortOrder"),
                         new GUIContent("Back Sort Order"));
                 },
@@ -184,10 +184,10 @@ namespace LoogaSoft.Menu.Editor
                 return;
 
             SerializedProperty entry = entries.GetArrayElementAtIndex(index);
-            EditorGUILayout.PropertyField(
+            LoogaGUILayout.PropertyField(
                 entry.FindPropertyRelative("_displayName"),
                 new GUIContent("Label"));
-            EditorGUILayout.PropertyField(
+            LoogaGUILayout.PropertyField(
                 entry.FindPropertyRelative("_destination"),
                 new GUIContent("Destination"),
                 true);
@@ -196,7 +196,7 @@ namespace LoogaSoft.Menu.Editor
             requirements.isExpanded = LoogaGUILayout.FoldoutSmall(
                 "Advanced",
                 requirements.isExpanded,
-                () => EditorGUILayout.PropertyField(
+                () => LoogaGUILayout.PropertyField(
                     requirements,
                     new GUIContent("Requirements"),
                     true),
@@ -222,14 +222,14 @@ namespace LoogaSoft.Menu.Editor
         private static void DrawBackAction(SerializedProperty settings)
         {
             SerializedProperty showBack = settings.FindPropertyRelative("_showBackAction");
-            EditorGUILayout.PropertyField(showBack, new GUIContent("Show Back Action"));
+            LoogaGUILayout.PropertyField(showBack, new GUIContent("Show Back Action"));
             if (!showBack.boolValue)
                 return;
 
-            EditorGUILayout.PropertyField(
+            LoogaGUILayout.PropertyField(
                 settings.FindPropertyRelative("_backLabel"),
                 new GUIContent("Label"));
-            EditorGUILayout.PropertyField(
+            LoogaGUILayout.PropertyField(
                 settings.FindPropertyRelative("_backInputAction"),
                 new GUIContent("Input Action"));
         }

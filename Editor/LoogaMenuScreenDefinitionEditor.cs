@@ -44,22 +44,22 @@ namespace LoogaSoft.Menu.Editor
 
         private void DrawSettings()
         {
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_description"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_description"));
             LoogaMenuScreenAuthoringGUI.DrawNavigation(
                 serializedObject.FindProperty("_navigation"),
                 supportsInheritance: false);
             LoogaMenuScreenAuthoringGUI.DrawActionBar(serializedObject.FindProperty("_actionBar"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanelMode"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanelMode"));
             if ((LoogaMenuPanelReferenceMode)serializedObject.FindProperty("_backgroundPanelMode").enumValueIndex
                 == LoogaMenuPanelReferenceMode.Override)
             {
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanel"));
+                LoogaGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanel"));
             }
 
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
+            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
         }
 
         private void DrawLayouts(LoogaMenuScreenDefinition screen)
@@ -83,51 +83,67 @@ namespace LoogaSoft.Menu.Editor
             {
                 SerializedProperty element = layouts.GetArrayElementAtIndex(i);
                 LoogaMenuScreenLayout layout = element.objectReferenceValue as LoogaMenuScreenLayout;
-                using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+                Rect rowRect = EditorGUILayout.GetControlRect(
+                    false,
+                    LoogaEditorTabs.SegmentedButtonHeight);
+                const float defaultButtonWidth = 86f;
+                const float duplicateButtonWidth = 66f;
+                const float removeButtonWidth = 22f;
+                const float minimumLayoutButtonWidth = 80f;
+                const float fixedButtonWidth = defaultButtonWidth
+                    + duplicateButtonWidth
+                    + removeButtonWidth;
+                float fixedButtonScale = Mathf.Min(
+                    1f,
+                    Mathf.Max(0f, rowRect.width - minimumLayoutButtonWidth) / fixedButtonWidth);
+                float scaledDefaultWidth = defaultButtonWidth * fixedButtonScale;
+                float scaledDuplicateWidth = duplicateButtonWidth * fixedButtonScale;
+                float scaledRemoveWidth = removeButtonWidth * fixedButtonScale;
+                float layoutButtonWidth = Mathf.Max(
+                    1f,
+                    rowRect.width - scaledDefaultWidth - scaledDuplicateWidth - scaledRemoveWidth);
+                Rect layoutRect = new(rowRect.x, rowRect.y, layoutButtonWidth, rowRect.height);
+                Rect defaultRect = new(layoutRect.xMax, rowRect.y, scaledDefaultWidth, rowRect.height);
+                Rect duplicateRect = new(defaultRect.xMax, rowRect.y, scaledDuplicateWidth, rowRect.height);
+                Rect removeRect = new(duplicateRect.xMax, rowRect.y, scaledRemoveWidth, rowRect.height);
+
+                bool selected = layout != null && layout == _selectedLayout;
+                GUIContent rowContent = new(
+                    layout != null ? layout.name : "Missing Layout",
+                    BuildLayoutSummary(layout));
+                bool nextSelected = LoogaEditorTabs.DrawSegmentedToggle(
+                    layoutRect,
+                    selected,
+                    rowContent);
+                if (nextSelected && !selected)
+                    SelectLayout(layout);
+
+                bool isDefault = defaultLayout.objectReferenceValue == layout;
+                using (new EditorGUI.DisabledScope(isDefault || layout == null))
                 {
-                    bool selected = layout != null && layout == _selectedLayout;
-                    GUIContent rowContent = new(
-                        layout != null ? layout.name : "Missing Layout",
-                        BuildLayoutSummary(layout));
-                    bool nextSelected = GUILayout.Toggle(
-                        selected,
-                        rowContent,
-                        EditorStyles.toolbarButton,
-                        GUILayout.MinWidth(80f),
-                        GUILayout.ExpandWidth(true));
-                    if (nextSelected && !selected)
-                        SelectLayout(layout);
+                    if (LoogaEditorTabs.DrawSegmentedButton(
+                            defaultRect,
+                            new GUIContent(isDefault ? "Default" : "Make Default")))
+                        defaultLayout.objectReferenceValue = layout;
+                }
 
-                    bool isDefault = defaultLayout.objectReferenceValue == layout;
-                    using (new EditorGUI.DisabledScope(isDefault || layout == null))
+                using (new EditorGUI.DisabledScope(layout == null))
+                {
+                    if (LoogaEditorTabs.DrawSegmentedButton(
+                            duplicateRect,
+                            new GUIContent("Duplicate", "Create a copy of this layout.")))
                     {
-                        if (GUILayout.Button(
-                                isDefault ? "Default" : "Make Default",
-                                EditorStyles.toolbarButton,
-                                GUILayout.Width(86f)))
-                            defaultLayout.objectReferenceValue = layout;
-                    }
-
-                    using (new EditorGUI.DisabledScope(layout == null))
-                    {
-                        if (GUILayout.Button(
-                                new GUIContent("Duplicate", "Create a copy of this layout."),
-                                EditorStyles.toolbarButton,
-                                GUILayout.Width(66f)))
-                        {
-                            DuplicateLayout(screen, layouts, layout);
-                            return;
-                        }
-                    }
-
-                    if (GUILayout.Button(
-                            new GUIContent("-", "Remove this layout."),
-                            EditorStyles.toolbarButton,
-                            GUILayout.Width(22f)))
-                    {
-                        RemoveLayout(layouts, defaultLayout, i, layout);
+                        DuplicateLayout(screen, layouts, layout);
                         return;
                     }
+                }
+
+                if (LoogaEditorTabs.DrawSegmentedButton(
+                        removeRect,
+                        new GUIContent("-", "Remove this layout.")))
+                {
+                    RemoveLayout(layouts, defaultLayout, i, layout);
+                    return;
                 }
             }
 

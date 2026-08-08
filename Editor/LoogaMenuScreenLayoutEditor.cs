@@ -33,8 +33,8 @@ namespace LoogaSoft.Menu.Editor
             }
             else
             {
-                EditorGUILayout.PropertyField(layoutObject.FindProperty("_description"));
-                EditorGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
+                LoogaGUILayout.PropertyField(layoutObject.FindProperty("_description"));
+                LoogaGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
             }
 
             LoogaMenuScreenAuthoringGUI.DrawNavigation(
