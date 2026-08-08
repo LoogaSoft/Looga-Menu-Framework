@@ -10,7 +10,6 @@ namespace LoogaSoft.Menu.Editor
     /// </summary>
     internal static class LoogaMenuScreenAuthoringGUI
     {
-        private static readonly string[] ScreenNavigationModes = { "Off", "Configure" };
         private static readonly string[] LayoutNavigationModes = { "Inherit", "Override", "Hidden" };
         private static readonly string[] ActionBarModes = { "Inherit", "Override", "Hidden" };
 
@@ -79,23 +78,63 @@ namespace LoogaSoft.Menu.Editor
                 ? "Primary Navigation"
                 : "Secondary Navigation";
 
-            LoogaGUILayout.BoxSmall(title, () =>
+            if (!supportsInheritance)
             {
-                int layerIndex = FindLayer(layers, placement);
-                SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
-                int mode = ResolveNavigationMode(layer, supportsInheritance);
-                string[] labels = supportsInheritance ? LayoutNavigationModes : ScreenNavigationModes;
-                int nextMode = LoogaGUILayout.Tabs(
-                    mode,
-                    labels,
-                    $"{layers.serializedObject.targetObject.GetInstanceID()}_{layers.propertyPath}_{placement}");
+                DrawScreenNavigationPlacement(layers, placement, title);
+                return;
+            }
 
-                if (nextMode != mode)
-                    layer = ApplyNavigationMode(layers, layerIndex, placement, supportsInheritance, nextMode);
+            LoogaGUILayout.BoxSmall(title, () => DrawLayoutNavigationPlacement(layers, placement));
+        }
 
-                if (nextMode == 1 && layer != null)
-                    DrawNavigationEntries(layer);
-            });
+        private static void DrawScreenNavigationPlacement(
+            SerializedProperty layers,
+            LoogaMenuNavigationPlacement placement,
+            string title)
+        {
+            int layerIndex = FindLayer(layers, placement);
+            SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
+            bool enabled = layer != null && layer.FindPropertyRelative("_visible").boolValue;
+            bool expanded = enabled && layer.isExpanded;
+
+            bool nextExpanded = LoogaGUILayout.ToggleFoldoutSmall(
+                new GUIContent(title, "Enable this navigation area and edit the entries it contributes."),
+                enabled,
+                expanded,
+                () => DrawNavigationEntries(layer),
+                out bool nextEnabled);
+
+            if (nextEnabled != enabled)
+            {
+                if (layer == null)
+                    layer = AddLayer(layers, placement);
+
+                layer.FindPropertyRelative("_visible").boolValue = nextEnabled;
+                layer.isExpanded = nextEnabled;
+                return;
+            }
+
+            if (layer != null)
+                layer.isExpanded = nextExpanded;
+        }
+
+        private static void DrawLayoutNavigationPlacement(
+            SerializedProperty layers,
+            LoogaMenuNavigationPlacement placement)
+        {
+            int layerIndex = FindLayer(layers, placement);
+            SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
+            int mode = ResolveNavigationMode(layer, true);
+            int nextMode = LoogaGUILayout.Tabs(
+                mode,
+                LayoutNavigationModes,
+                $"{layers.serializedObject.targetObject.GetInstanceID()}_{layers.propertyPath}_{placement}");
+
+            if (nextMode != mode)
+                layer = ApplyNavigationMode(layers, layerIndex, placement, true, nextMode);
+
+            if (nextMode == 1 && layer != null)
+                DrawNavigationEntries(layer);
         }
 
         private static void DrawNavigationEntries(SerializedProperty layer)
