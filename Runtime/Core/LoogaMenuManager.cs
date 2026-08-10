@@ -16,11 +16,11 @@ namespace LoogaSoft.Menu
         private readonly HashSet<LoogaBlackboardKey> _ownedParameterKeys = new();
         private readonly ILoogaBlackboardReader _blackboardReader;
         private readonly ILoogaBlackboardWriter _blackboardWriter;
-        private readonly LoogaMenuPanelDefinition _defaultBackgroundPanel;
-        private readonly LoogaMenuActionBarSettings _defaultActionBar;
-        private readonly NavigationRuntime _primaryNavigation;
-        private readonly NavigationRuntime _secondaryNavigation;
-        private readonly ActionBarRuntime _actionBar;
+        private readonly LoogaMenuStructureProfile _structure;
+        private readonly Dictionary<LoogaMenuRegionDefinition, NavigationRuntime> _navigation = new();
+        private readonly Dictionary<LoogaMenuRegionDefinition, ActionBarRuntime> _actionBars = new();
+        private readonly List<LoogaMenuRegionContent> _resolvedRegionContents = new();
+        private readonly List<LoogaMenuPanelDefinition> _regionPanels = new();
 
         private ILoogaMenuTransitionHandler _transitionHandler;
         private ILoogaMenuAudioHandler _audioHandler;
@@ -28,16 +28,25 @@ namespace LoogaSoft.Menu
         public LoogaMenuManager(
             ILoogaBlackboardReader blackboardReader,
             ILoogaBlackboardWriter blackboardWriter,
-            LoogaMenuPanelDefinition defaultBackgroundPanel = null,
-            LoogaMenuActionBarSettings defaultActionBar = null)
+            LoogaMenuStructureProfile structure)
         {
             _blackboardReader = blackboardReader;
             _blackboardWriter = blackboardWriter;
-            _defaultBackgroundPanel = defaultBackgroundPanel;
-            _defaultActionBar = defaultActionBar;
-            _primaryNavigation = new NavigationRuntime(this, LoogaMenuNavigationPlacement.Primary);
-            _secondaryNavigation = new NavigationRuntime(this, LoogaMenuNavigationPlacement.Secondary);
-            _actionBar = new ActionBarRuntime(this);
+            _structure = structure;
+
+            if (_structure == null)
+                return;
+
+            foreach (LoogaMenuRegionDefinition region in _structure.Regions)
+            {
+                if (region == null)
+                    continue;
+
+                if (typeof(LoogaMenuNavigationRegionContent).IsAssignableFrom(region.ContentType))
+                    _navigation[region] = new NavigationRuntime(this, region);
+                else if (typeof(LoogaMenuActionRegionContent).IsAssignableFrom(region.ContentType))
+                    _actionBars[region] = new ActionBarRuntime(this, region);
+            }
         }
 
         public event Action<LoogaMenuState> StateChanged;
@@ -56,13 +65,11 @@ namespace LoogaSoft.Menu
                 : screen?.ResolveLayout(null);
         }
 
-        public bool TryGetNavigation(LoogaMenuNavigationPlacement placement, out ILoogaMenuNavigation navigation)
+        public bool TryGetNavigation(LoogaMenuRegionDefinition region, out ILoogaMenuNavigation navigation)
         {
-            NavigationRuntime runtime = placement == LoogaMenuNavigationPlacement.Secondary
-                ? _secondaryNavigation
-                : _primaryNavigation;
-
-            if (runtime.HasEntries)
+            if (region != null
+                && _navigation.TryGetValue(region, out NavigationRuntime runtime)
+                && runtime.HasEntries)
             {
                 navigation = runtime;
                 return true;
@@ -72,16 +79,28 @@ namespace LoogaSoft.Menu
             return false;
         }
 
-        public bool TryGetActionBar(out ILoogaMenuActionBar actionBar)
+        public bool TryGetActionBar(LoogaMenuRegionDefinition region, out ILoogaMenuActionBar actionBar)
         {
-            if (_actionBar.IsVisible)
+            if (region != null
+                && _actionBars.TryGetValue(region, out ActionBarRuntime runtime)
+                && runtime.IsVisible)
             {
-                actionBar = _actionBar;
+                actionBar = runtime;
                 return true;
             }
 
             actionBar = null;
             return false;
+        }
+
+        /// <summary>Resolves the active content for a configured region.</summary>
+        public LoogaMenuRegionContent ResolveRegionContent(LoogaMenuRegionDefinition region)
+        {
+            LoogaMenuScreenDefinition screen = TopScreen;
+            if (screen == null || region == null || (_structure != null && !_structure.Contains(region)))
+                return null;
+
+            return screen.ResolveRegion(GetActiveLayout(screen), region);
         }
 
         public void SetTransitionHandler(ILoogaMenuTransitionHandler transitionHandler)
@@ -156,7 +175,7 @@ namespace LoogaSoft.Menu
             _openModes[screen] = mode;
             RebuildPresentation();
 
-            LoogaMenuPanel[] openedPanels = ResolvePanels(screen, layout, includeActionBar: true);
+            LoogaMenuPanel[] openedPanels = ResolvePanels(screen, layout, includeSharedPresentation: true);
             _transitionHandler?.PlayOpen(screen, openedPanels);
             _audioHandler?.PlayOpen(screen, openedPanels);
             NotifyStateChanged();
@@ -189,7 +208,7 @@ namespace LoogaSoft.Menu
 
             LoogaMenuScreenDefinition screen = _openScreens[^1];
             LoogaMenuScreenLayout layout = GetActiveLayout(screen);
-            LoogaMenuPanel[] closingPanels = ResolvePanels(screen, layout, includeActionBar: true);
+            LoogaMenuPanel[] closingPanels = ResolvePanels(screen, layout, includeSharedPresentation: true);
             _openScreens.RemoveAt(_openScreens.Count - 1);
             _activeLayouts.Remove(screen);
             _openModes.Remove(screen);
@@ -225,39 +244,6 @@ namespace LoogaSoft.Menu
                 if (panel != null && (includeCovered || !panel.IsCovered))
                     panels.Add(panel);
             }
-        }
-
-        internal LoogaMenuNavigationLayer ResolveNavigationLayer(LoogaMenuNavigationPlacement placement)
-        {
-            LoogaMenuScreenDefinition screen = TopScreen;
-            return screen != null ? screen.ResolveNavigation(GetActiveLayout(screen), placement) : null;
-        }
-
-        internal LoogaMenuActionBarSettings ResolveActionBarSettings()
-        {
-            LoogaMenuScreenDefinition screen = TopScreen;
-            if (screen == null)
-                return null;
-
-            LoogaMenuActionBarSettings settings = _defaultActionBar;
-            if (!ApplyActionBarOverride(screen.ActionBar, ref settings))
-                return null;
-
-            LoogaMenuScreenLayout layout = GetActiveLayout(screen);
-            return ApplyActionBarOverride(layout?.ActionBar, ref settings) ? settings : null;
-        }
-
-        private static bool ApplyActionBarOverride(LoogaMenuActionBarOverride actionBar,
-            ref LoogaMenuActionBarSettings settings)
-        {
-            if (actionBar == null || actionBar.Mode == LoogaMenuActionBarMode.Inherit)
-                return true;
-
-            if (actionBar.Mode == LoogaMenuActionBarMode.Hide)
-                return false;
-
-            settings = actionBar.Settings;
-            return true;
         }
 
         private void CloseAll(bool notify)
@@ -297,7 +283,9 @@ namespace LoogaSoft.Menu
 
         private void RebuildPresentation()
         {
-            _actionBar.ReleasePanelSubscriptions();
+            foreach (ActionBarRuntime actionBar in _actionBars.Values)
+                actionBar.ReleasePanelSubscriptions();
+
             ClearOwnedParameters();
             _visiblePanels.Clear();
 
@@ -305,7 +293,6 @@ namespace LoogaSoft.Menu
             foreach (LoogaMenuScreenDefinition screen in _openScreens)
             {
                 LoogaMenuScreenLayout layout = GetActiveLayout(screen);
-                AddPanel(screen.GetBackgroundPanel(_defaultBackgroundPanel), screen, desired);
                 foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(layout))
                 {
                     if (entry == null)
@@ -316,8 +303,14 @@ namespace LoogaSoft.Menu
                 }
             }
 
-            LoogaMenuActionBarSettings actionBar = ResolveActionBarSettings();
-            AddPanel(actionBar?.Panel, TopScreen, desired);
+            CollectResolvedRegionContents();
+            foreach (LoogaMenuRegionContent content in _resolvedRegionContents)
+            {
+                _regionPanels.Clear();
+                content.CollectPanels(_regionPanels);
+                foreach (LoogaMenuPanelDefinition panel in _regionPanels)
+                    AddPanel(panel, TopScreen, desired);
+            }
 
             foreach (LoogaMenuPanel panel in _panels.Values)
             {
@@ -336,7 +329,22 @@ namespace LoogaSoft.Menu
             }
 
             ApplyOverlayCoverage();
-            _actionBar.RefreshActions();
+            foreach (ActionBarRuntime actionBar in _actionBars.Values)
+                actionBar.RefreshActions();
+        }
+
+        private void CollectResolvedRegionContents()
+        {
+            _resolvedRegionContents.Clear();
+            if (_structure == null || TopScreen == null)
+                return;
+
+            foreach (LoogaMenuRegionDefinition region in _structure.Regions)
+            {
+                LoogaMenuRegionContent content = ResolveRegionContent(region);
+                if (content != null)
+                    _resolvedRegionContents.Add(content);
+            }
         }
 
         private void AddPanel(LoogaMenuPanelDefinition definition, LoogaMenuScreenDefinition owner,
@@ -364,7 +372,10 @@ namespace LoogaSoft.Menu
                 && mode == LoogaMenuOpenMode.Overlay;
 
             HashSet<LoogaMenuPanel> topPanels = hasOverlay
-                ? new HashSet<LoogaMenuPanel>(ResolvePanels(top, GetActiveLayout(top), includeActionBar: true))
+                ? new HashSet<LoogaMenuPanel>(ResolvePanels(
+                    top,
+                    GetActiveLayout(top),
+                    includeSharedPresentation: true))
                 : null;
 
             foreach (LoogaMenuPanel panel in _visiblePanels)
@@ -372,18 +383,25 @@ namespace LoogaSoft.Menu
         }
 
         private LoogaMenuPanel[] ResolvePanels(LoogaMenuScreenDefinition screen, LoogaMenuScreenLayout layout,
-            bool includeActionBar)
+            bool includeSharedPresentation)
         {
             if (screen == null)
                 return Array.Empty<LoogaMenuPanel>();
 
             List<LoogaMenuPanel> result = new();
-            AddResolvedPanel(screen.GetBackgroundPanel(_defaultBackgroundPanel), result);
             foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(layout))
                 AddResolvedPanel(entry?.Panel, result);
 
-            if (includeActionBar && screen == TopScreen)
-                AddResolvedPanel(ResolveActionBarSettings()?.Panel, result);
+            if (includeSharedPresentation && screen == TopScreen)
+            {
+                foreach (LoogaMenuRegionContent content in _resolvedRegionContents)
+                {
+                    _regionPanels.Clear();
+                    content.CollectPanels(_regionPanels);
+                    foreach (LoogaMenuPanelDefinition panel in _regionPanels)
+                        AddResolvedPanel(panel, result);
+                }
+            }
 
             return result.ToArray();
         }
@@ -434,26 +452,27 @@ namespace LoogaSoft.Menu
         {
             private readonly LoogaMenuManager _manager;
 
-            public NavigationRuntime(LoogaMenuManager manager, LoogaMenuNavigationPlacement placement)
+            public NavigationRuntime(LoogaMenuManager manager, LoogaMenuRegionDefinition region)
             {
                 _manager = manager;
-                Placement = placement;
+                Region = region;
             }
 
-            public LoogaMenuNavigationPlacement Placement { get; }
-            public IReadOnlyList<LoogaMenuNavigationEntry> Entries => Layer?.Entries ?? Array.Empty<LoogaMenuNavigationEntry>();
-            public bool HasEntries => Layer is { Visible: true } && Entries.Count > 0;
+            public LoogaMenuRegionDefinition Region { get; }
+            public IReadOnlyList<LoogaMenuNavigationEntry> Entries => Content?.Entries
+                ?? Array.Empty<LoogaMenuNavigationEntry>();
+            public bool HasEntries => Entries.Count > 0;
             public int SelectedIndex
             {
                 get
                 {
-                    LoogaMenuNavigationLayer layer = Layer;
-                    if (layer == null || !layer.Visible)
+                    LoogaMenuNavigationRegionContent content = Content;
+                    if (content == null)
                         return -1;
 
-                    for (int i = 0; i < layer.Entries.Length; i++)
+                    for (int i = 0; i < content.Entries.Count; i++)
                     {
-                        LoogaMenuDestination destination = layer.Entries[i]?.Destination;
+                        LoogaMenuDestination destination = content.Entries[i]?.Destination;
                         if (destination != null
                             && destination.Matches(_manager.TopScreen,
                                 _manager.GetActiveLayout(_manager.TopScreen)))
@@ -462,19 +481,20 @@ namespace LoogaSoft.Menu
                         }
                     }
 
-                    return layer.DefaultEntryIndex;
+                    return content.DefaultEntryIndex;
                 }
             }
 
-            private LoogaMenuNavigationLayer Layer => _manager.ResolveNavigationLayer(Placement);
+            private LoogaMenuNavigationRegionContent Content =>
+                _manager.ResolveRegionContent(Region) as LoogaMenuNavigationRegionContent;
 
             public bool Select(int index)
             {
-                LoogaMenuNavigationLayer layer = Layer;
-                if (layer == null || !layer.Visible || index < 0 || index >= layer.Entries.Length)
+                LoogaMenuNavigationRegionContent content = Content;
+                if (content == null || index < 0 || index >= content.Entries.Count)
                     return false;
 
-                LoogaMenuNavigationEntry entry = layer.Entries[index];
+                LoogaMenuNavigationEntry entry = content.Entries[index];
                 if (entry?.Destination == null || !entry.Destination.IsAssigned)
                     return false;
 
@@ -511,20 +531,26 @@ namespace LoogaSoft.Menu
             private readonly List<LoogaMenuActionDescriptor> _actions = new();
             private readonly List<LoogaMenuPanel> _sourcePanels = new();
 
-            public ActionBarRuntime(LoogaMenuManager manager)
+            private readonly LoogaMenuRegionDefinition _region;
+
+            public ActionBarRuntime(LoogaMenuManager manager, LoogaMenuRegionDefinition region)
             {
                 _manager = manager;
+                _region = region;
             }
 
             public IReadOnlyList<LoogaMenuActionDescriptor> Actions => _actions;
-            public bool IsVisible => _manager.ResolveActionBarSettings()?.Panel != null;
+            public bool IsVisible => Settings != null;
             public event Action ActionsChanged;
+
+            private LoogaMenuActionRegionContent Settings =>
+                _manager.ResolveRegionContent(_region) as LoogaMenuActionRegionContent;
 
             public void RefreshActions()
             {
                 ReleasePanelSubscriptions();
                 _actions.Clear();
-                LoogaMenuActionBarSettings settings = _manager.ResolveActionBarSettings();
+                LoogaMenuActionRegionContent settings = Settings;
                 if (settings == null)
                 {
                     ActionsChanged?.Invoke();

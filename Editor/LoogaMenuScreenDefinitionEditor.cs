@@ -45,16 +45,7 @@ namespace LoogaSoft.Menu.Editor
         private void DrawSettings()
         {
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_description"));
-            LoogaMenuScreenAuthoringGUI.DrawNavigation(
-                serializedObject.FindProperty("_navigation"),
-                supportsInheritance: false);
-            LoogaMenuScreenAuthoringGUI.DrawActionBar(serializedObject.FindProperty("_actionBar"));
-            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanelMode"));
-            if ((LoogaMenuPanelReferenceMode)serializedObject.FindProperty("_backgroundPanelMode").enumValueIndex
-                == LoogaMenuPanelReferenceMode.Override)
-            {
-                LoogaGUILayout.PropertyField(serializedObject.FindProperty("_backgroundPanel"));
-            }
+            LoogaMenuScreenAuthoringGUI.DrawRegions(serializedObject.FindProperty("_regionOverrides"));
 
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
@@ -320,8 +311,8 @@ namespace LoogaSoft.Menu.Editor
                 return "This layout reference is missing.";
 
             int panelCount = layout.Panels?.Length ?? 0;
-            int navigationCount = layout.NavigationOverrides?.Length ?? 0;
-            return $"{panelCount} panel(s), {navigationCount} navigation override(s).";
+            int regionCount = layout.RegionOverrides?.Length ?? 0;
+            return $"{panelCount} panel(s), {regionCount} region override(s).";
         }
 
         private static void DrawValidation(LoogaMenuScreenDefinition screen)
@@ -351,12 +342,33 @@ namespace LoogaSoft.Menu.Editor
                     continue;
 
                 HashSet<LoogaMenuPanelDefinition> panels = new();
-                ValidatePanel($"{layout.DisplayName} background",
-                    screen.GetBackgroundPanel(root.DefaultBackgroundPanel), panels, ref hasIssue);
                 foreach (LoogaMenuScreenPanelEntry entry in layout.Panels)
                 {
                     if (entry != null)
                         ValidatePanel(layout.DisplayName, entry.Panel, panels, ref hasIssue);
+                }
+
+                LoogaMenuStructureProfile structure = root.Structure;
+                if (structure == null)
+                    continue;
+
+                List<LoogaMenuPanelDefinition> regionPanels = new();
+                foreach (LoogaMenuRegionDefinition region in structure.Regions)
+                {
+                    LoogaMenuRegionContent content = screen.ResolveRegion(layout, region);
+                    if (content == null)
+                        continue;
+
+                    regionPanels.Clear();
+                    content.CollectPanels(regionPanels);
+                    foreach (LoogaMenuPanelDefinition panel in regionPanels)
+                    {
+                        ValidatePanel(
+                            $"{layout.DisplayName} / {region.DisplayName}",
+                            panel,
+                            panels,
+                            ref hasIssue);
+                    }
                 }
             }
 

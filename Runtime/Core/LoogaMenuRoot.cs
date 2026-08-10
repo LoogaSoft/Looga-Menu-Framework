@@ -12,9 +12,8 @@ namespace LoogaSoft.Menu
         [SerializeField] private bool _registerChildrenOnAwake = true;
         [SerializeField] private LoogaMenuPanel[] _scenePanels = System.Array.Empty<LoogaMenuPanel>();
 
-        [Header("Default Presentation")]
-        [SerializeField] private LoogaMenuPanelDefinition _defaultBackgroundPanel;
-        [SerializeField] private LoogaMenuActionBarSettings _defaultActionBar = new();
+        [Header("Structure")]
+        [SerializeField] private LoogaMenuStructureProfile _structure;
 
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
@@ -38,24 +37,19 @@ namespace LoogaSoft.Menu
         /// <summary>Gets write access to the active menu blackboard.</summary>
         public ILoogaBlackboardWriter BlackboardWriter => _blackboardWriter;
 
-        /// <summary>Gets the default background panel.</summary>
-        public LoogaMenuPanelDefinition DefaultBackgroundPanel => _defaultBackgroundPanel;
-
-        /// <summary>Gets the default settings used by the shared action bar.</summary>
-        public LoogaMenuActionBarSettings DefaultActionBar => _defaultActionBar;
+        /// <summary>Gets the project-authored menu region structure.</summary>
+        public LoogaMenuStructureProfile Structure => _structure;
 
         /// <summary>Applies project-level menu behavior at runtime.</summary>
         public void ApplyRuntimeDefaults(
             bool registerChildrenOnAwake,
-            LoogaMenuPanelDefinition defaultBackgroundPanel,
-            LoogaMenuActionBarSettings defaultActionBar,
+            LoogaMenuStructureProfile structure,
             bool controlCursor,
             CursorLockMode closedLockMode,
             bool closedCursorVisible)
         {
             _registerChildrenOnAwake = registerChildrenOnAwake;
-            _defaultBackgroundPanel = defaultBackgroundPanel;
-            _defaultActionBar = defaultActionBar;
+            _structure = structure;
             _controlCursor = controlCursor;
             _closedLockMode = closedLockMode;
             _closedCursorVisible = closedCursorVisible;
@@ -74,8 +68,7 @@ namespace LoogaSoft.Menu
             _menuManager = new LoogaMenuManager(
                 _blackboardReader,
                 _blackboardWriter,
-                _defaultBackgroundPanel,
-                _defaultActionBar);
+                _structure);
             _menuManager.StateChanged += OnMenuStateChanged;
 
             RegisterStateProviders();

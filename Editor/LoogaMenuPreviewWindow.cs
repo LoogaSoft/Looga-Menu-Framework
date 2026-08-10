@@ -274,7 +274,6 @@ namespace LoogaSoft.Menu.Editor
                 EditorUtility.SetDirty(panel);
             }
 
-            ShowPanel(screen.GetBackgroundPanel(root != null ? root.DefaultBackgroundPanel : null));
             layout = screen.ResolveLayout(layout);
             foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(layout))
             {
@@ -282,32 +281,25 @@ namespace LoogaSoft.Menu.Editor
                     ShowPanel(entry.Panel);
             }
 
-            LoogaMenuActionBarSettings actionBar = ResolveActionBar(root, screen, layout);
-            ShowPanel(actionBar?.Panel);
-        }
 
-        private static LoogaMenuActionBarSettings ResolveActionBar(
-            LoogaMenuRoot root,
-            LoogaMenuScreenDefinition screen,
-            LoogaMenuScreenLayout layout)
-        {
-            LoogaMenuActionBarSettings settings = root != null ? root.DefaultActionBar : null;
-            if (!ApplyOverride(screen.ActionBar, ref settings))
-                return null;
-            return ApplyOverride(layout?.ActionBar, ref settings) ? settings : null;
-        }
+            LoogaMenuStructureProfile structure = root != null
+                ? root.Structure
+                : LoogaMenuStructureEditorUtility.FindStructure();
+            if (structure == null)
+                return;
 
-        private static bool ApplyOverride(
-            LoogaMenuActionBarOverride actionBar,
-            ref LoogaMenuActionBarSettings settings)
-        {
-            if (actionBar == null || actionBar.Mode == LoogaMenuActionBarMode.Inherit)
-                return true;
-            if (actionBar.Mode == LoogaMenuActionBarMode.Hide)
-                return false;
+            List<LoogaMenuPanelDefinition> regionPanels = new();
+            foreach (LoogaMenuRegionDefinition region in structure.Regions)
+            {
+                LoogaMenuRegionContent content = screen.ResolveRegion(layout, region);
+                if (content == null)
+                    continue;
 
-            settings = actionBar.Settings;
-            return true;
+                regionPanels.Clear();
+                content.CollectPanels(regionPanels);
+                foreach (LoogaMenuPanelDefinition panel in regionPanels)
+                    ShowPanel(panel);
+            }
         }
 
         private static void ResetPreview(LoogaMenuPanel[] panels)

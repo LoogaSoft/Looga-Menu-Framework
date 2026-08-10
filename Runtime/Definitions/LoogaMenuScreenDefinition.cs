@@ -1,17 +1,9 @@
 using System;
-using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace LoogaSoft.Menu
 {
-    public enum LoogaMenuPanelReferenceMode
-    {
-        UseRootDefault = 0,
-        Override = 1,
-        None = 2
-    }
-
     /// <summary>
     /// Defines one menu destination. A screen owns its layouts, navigation entries, and menu behavior.
     /// </summary>
@@ -27,20 +19,8 @@ namespace LoogaSoft.Menu
         [FormerlySerializedAs("_defaultConfiguration")]
         [SerializeField] private LoogaMenuScreenLayout _defaultLayout;
 
-        [Header("Navigation")]
-        [Tooltip("Entries contributed to the shared navigation presenter while this screen is active.")]
-        [InspectorName("Layers")]
-        [SerializeField] private LoogaMenuNavigationLayer[] _navigation = Array.Empty<LoogaMenuNavigationLayer>();
-
-        [Header("Action Bar")]
-        [InspectorName("Override")]
-        [SerializeField] private LoogaMenuActionBarOverride _actionBar;
-
-        [Header("Background")]
-        [InspectorName("Background Panel Source")]
-        [SerializeField] private LoogaMenuPanelReferenceMode _backgroundPanelMode = LoogaMenuPanelReferenceMode.UseRootDefault;
-        [ShowIf(nameof(_backgroundPanelMode), (int)LoogaMenuPanelReferenceMode.Override)]
-        [SerializeField] private LoogaMenuPanelDefinition _backgroundPanel;
+        [Header("Regions")]
+        [SerializeField] private LoogaMenuRegionOverride[] _regionOverrides = Array.Empty<LoogaMenuRegionOverride>();
 
         [Header("Behavior")]
         [InspectorName("Open Requirements")]
@@ -53,10 +33,7 @@ namespace LoogaSoft.Menu
         public string Description => _description;
         public LoogaMenuScreenLayout[] Layouts => _layouts;
         public LoogaMenuScreenLayout DefaultLayout => ResolveLayout(null);
-        public LoogaMenuNavigationLayer[] Navigation => _navigation;
-        public LoogaMenuActionBarOverride ActionBar => _actionBar;
-        public LoogaMenuPanelReferenceMode BackgroundPanelMode => _backgroundPanelMode;
-        public LoogaMenuPanelDefinition BackgroundPanelOverride => _backgroundPanel;
+        public LoogaMenuRegionOverride[] RegionOverrides => _regionOverrides;
         public LoogaMenuRuleSet Rules => _rules;
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
         public LoogaMenuOpenMode DefaultOpenMode => _defaultOpenMode;
@@ -98,45 +75,50 @@ namespace LoogaSoft.Menu
             return false;
         }
 
-        public LoogaMenuPanelDefinition GetBackgroundPanel(LoogaMenuPanelDefinition rootDefault)
+        public LoogaMenuRegionContent ResolveRegion(
+            LoogaMenuScreenLayout layout,
+            LoogaMenuRegionDefinition region)
         {
-            return _backgroundPanelMode switch
-            {
-                LoogaMenuPanelReferenceMode.UseRootDefault => rootDefault != null ? rootDefault : _backgroundPanel,
-                LoogaMenuPanelReferenceMode.Override => _backgroundPanel,
-                _ => null
-            };
-        }
+            LoogaMenuRegionContent content = region != null ? region.DefaultContent : null;
+            if (!ApplyRegionOverride(_regionOverrides, region, ref content))
+                return null;
 
-        public LoogaMenuNavigationLayer ResolveNavigation(LoogaMenuScreenLayout layout,
-            LoogaMenuNavigationPlacement placement)
-        {
             LoogaMenuScreenLayout resolvedLayout = ResolveLayout(layout);
-            LoogaMenuNavigationLayer layoutLayer = FindNavigation(resolvedLayout?.NavigationOverrides, placement);
-            return layoutLayer ?? FindNavigation(_navigation, placement);
+            return ApplyRegionOverride(resolvedLayout?.RegionOverrides, region, ref content)
+                ? content
+                : null;
         }
 
         private void OnValidate()
         {
             _layouts ??= Array.Empty<LoogaMenuScreenLayout>();
-            _navigation ??= Array.Empty<LoogaMenuNavigationLayer>();
+            _regionOverrides ??= Array.Empty<LoogaMenuRegionOverride>();
             if (_defaultLayout != null && !ContainsLayout(_defaultLayout))
                 _defaultLayout = null;
 
             _defaultLayout ??= ResolveLayout(null);
         }
 
-        private static LoogaMenuNavigationLayer FindNavigation(
-            LoogaMenuNavigationLayer[] layers,
-            LoogaMenuNavigationPlacement placement)
+        private static bool ApplyRegionOverride(
+            LoogaMenuRegionOverride[] overrides,
+            LoogaMenuRegionDefinition region,
+            ref LoogaMenuRegionContent content)
         {
-            foreach (LoogaMenuNavigationLayer layer in layers ?? Array.Empty<LoogaMenuNavigationLayer>())
+            foreach (LoogaMenuRegionOverride regionOverride in overrides ?? Array.Empty<LoogaMenuRegionOverride>())
             {
-                if (layer != null && layer.Placement == placement)
-                    return layer;
+                if (regionOverride == null || regionOverride.Region != region)
+                    continue;
+
+                if (regionOverride.Mode == LoogaMenuRegionMode.Hide)
+                    return false;
+
+                if (regionOverride.Mode == LoogaMenuRegionMode.Override)
+                    content = regionOverride.Content;
+
+                return true;
             }
 
-            return null;
+            return true;
         }
     }
 }

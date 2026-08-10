@@ -1,355 +1,204 @@
+using System;
 using LoogaSoft.Inspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
 {
-    /// <summary>
-    /// Draws the screen and layout controls that are easier to author as explicit menu concepts.
-    /// The serialized runtime model stays compact and independent from editor presentation.
-    /// </summary>
+    /// <summary>Draws configured region overrides for screens and layouts.</summary>
     internal static class LoogaMenuScreenAuthoringGUI
     {
-        private static readonly string[] LayoutNavigationModes = { "Inherit", "Override", "Hide" };
-        private static readonly string[] ActionBarModes = { "Inherit", "Override", "Hide" };
+        private static readonly string[] RegionModes = { "Inherit", "Override", "Hide" };
 
-        public static void DrawNavigation(SerializedProperty layers, bool supportsInheritance)
+        public static void DrawRegions(SerializedProperty overrides)
         {
+            LoogaMenuStructureProfile structure = LoogaMenuStructureEditorUtility.FindStructure();
             EditorGUILayout.Space(6f);
-            EditorGUILayout.LabelField("Navigation", EditorStyles.boldLabel);
-            DrawNavigationPlacement(layers, LoogaMenuNavigationPlacement.Primary, supportsInheritance);
-            DrawNavigationPlacement(layers, LoogaMenuNavigationPlacement.Secondary, supportsInheritance);
+            EditorGUILayout.LabelField("Regions", EditorStyles.boldLabel);
+
+            if (structure == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "Assign or create a Menu Structure Profile before authoring regions.",
+                    MessageType.Info);
+                return;
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.ObjectField("Structure", structure, typeof(LoogaMenuStructureProfile), false);
+                if (GUILayout.Button("Open", EditorStyles.miniButton, GUILayout.Width(46f)))
+                    AssetDatabase.OpenAsset(structure);
+            }
+
+            foreach (LoogaMenuRegionDefinition region in structure.Regions)
+            {
+                if (region != null)
+                    DrawRegion(overrides, region);
+            }
         }
 
-        public static void DrawActionBar(SerializedProperty actionBar)
+        private static void DrawRegion(SerializedProperty overrides, LoogaMenuRegionDefinition region)
         {
-            EditorGUILayout.Space(6f);
-            EditorGUILayout.LabelField("Action Bar", EditorStyles.boldLabel);
+            int index = FindOverride(overrides, region);
+            SerializedProperty regionOverride = index >= 0
+                ? overrides.GetArrayElementAtIndex(index)
+                : null;
+            int mode = regionOverride != null
+                ? regionOverride.FindPropertyRelative("_mode").enumValueIndex
+                : (int)LoogaMenuRegionMode.Inherit;
 
-            SerializedProperty mode = actionBar.FindPropertyRelative("_mode");
-            int selectedMode = LoogaGUILayout.Tabs(
-                mode.enumValueIndex,
-                ActionBarModes,
-                $"{actionBar.serializedObject.targetObject.GetInstanceID()}_{actionBar.propertyPath}_Mode");
-            mode.enumValueIndex = selectedMode;
+            EditorGUILayout.Space(3f);
+            EditorGUILayout.LabelField(region.DisplayName, EditorStyles.label);
+            int nextMode = LoogaGUILayout.Tabs(
+                mode,
+                RegionModes,
+                $"{overrides.serializedObject.targetObject.GetInstanceID()}_{region.GetInstanceID()}");
 
-            if ((LoogaMenuActionBarMode)selectedMode != LoogaMenuActionBarMode.Override)
+            if (nextMode != mode)
+            {
+                regionOverride ??= AddOverride(overrides, region);
+                regionOverride.FindPropertyRelative("_mode").enumValueIndex = nextMode;
+            }
+
+            if ((LoogaMenuRegionMode)nextMode != LoogaMenuRegionMode.Override)
                 return;
 
-            SerializedProperty settings = actionBar.FindPropertyRelative("_settings");
-            EditorGUILayout.Space(2f);
-            LoogaGUILayout.BoxSmall("Action Bar View", () =>
+            regionOverride ??= AddOverride(overrides, region);
+            SerializedProperty content = regionOverride.FindPropertyRelative("_content");
+            LoogaMenuRegionContent contentAsset = content.objectReferenceValue as LoogaMenuRegionContent;
+            if (contentAsset == null || contentAsset.GetType() != region.ContentType)
             {
-                LoogaGUILayout.PropertyField(settings.FindPropertyRelative("_panel"), new GUIContent("Panel"));
-            });
+                contentAsset = CreateContent(overrides.serializedObject.targetObject, region);
+                content.objectReferenceValue = contentAsset;
+                overrides.serializedObject.ApplyModifiedProperties();
+            }
 
-            LoogaGUILayout.BoxSmall("Back Action", () => DrawBackAction(settings));
-            LoogaGUILayout.BoxSmall("Context Actions", () =>
+            using (new EditorGUI.IndentLevelScope())
+                DrawContent(contentAsset);
+        }
+
+        internal static void DrawContent(LoogaMenuRegionContent content)
+        {
+            if (content == null)
+                return;
+
+            SerializedObject contentObject = new(content);
+            contentObject.UpdateIfRequiredOrScript();
+
+            if (content is LoogaMenuNavigationRegionContent)
             {
-                SerializedProperty includeCovered = settings.FindPropertyRelative("_includeCoveredPanels");
-                LoogaGUILayout.PropertyField(includeCovered, new GUIContent(
-                    "Include Covered Panels",
-                    "Include actions from panels that remain open beneath the active panel."));
-                EditorGUILayout.LabelField(
-                    "Active panels contribute their available actions at runtime.",
-                    EditorStyles.miniLabel);
-            });
+                DrawNavigationContent(contentObject);
+            }
+            else if (content is LoogaMenuActionRegionContent)
+            {
+                DrawActionContent(contentObject);
+            }
+            else
+            {
+                LoogaGUILayout.PropertyField(contentObject.FindProperty("_panels"), true);
+            }
 
-            SerializedProperty advanced = settings.FindPropertyRelative("_backBindingFallback");
+            contentObject.ApplyModifiedProperties();
+        }
+
+        private static void DrawNavigationContent(SerializedObject contentObject)
+        {
+            SerializedProperty entries = contentObject.FindProperty("_entries");
+            SerializedProperty defaultIndex = contentObject.FindProperty("_defaultEntryIndex");
+            LoogaGUILayout.PropertyField(entries, new GUIContent("Entries"), true);
+            if (entries.arraySize > 0)
+            {
+                defaultIndex.intValue = EditorGUILayout.IntSlider(
+                    new GUIContent("Default Entry"),
+                    defaultIndex.intValue,
+                    0,
+                    entries.arraySize - 1);
+            }
+        }
+
+        private static void DrawActionContent(SerializedObject contentObject)
+        {
+            LoogaGUILayout.PropertyField(contentObject.FindProperty("_panel"));
+            SerializedProperty showBack = contentObject.FindProperty("_showBackAction");
+            LoogaGUILayout.PropertyField(showBack);
+            if (showBack.boolValue)
+            {
+                LoogaGUILayout.PropertyField(contentObject.FindProperty("_backLabel"));
+                LoogaGUILayout.PropertyField(contentObject.FindProperty("_backInputAction"));
+            }
+
+            LoogaGUILayout.PropertyField(contentObject.FindProperty("_includeCoveredPanels"));
+            SerializedProperty advanced = contentObject.FindProperty("_backBindingFallback");
             advanced.isExpanded = LoogaGUILayout.FoldoutSmall(
                 "Advanced",
                 advanced.isExpanded,
                 () =>
                 {
-                    LoogaGUILayout.PropertyField(advanced, new GUIContent("Back Binding Fallback"));
-                    LoogaGUILayout.PropertyField(
-                        settings.FindPropertyRelative("_backSortOrder"),
-                        new GUIContent("Back Sort Order"));
+                    LoogaGUILayout.PropertyField(advanced);
+                    LoogaGUILayout.PropertyField(contentObject.FindProperty("_backSortOrder"));
                 },
                 advanced);
         }
 
-        private static void DrawNavigationPlacement(
-            SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement,
-            bool supportsInheritance)
+        private static int FindOverride(SerializedProperty overrides, LoogaMenuRegionDefinition region)
         {
-            string title = placement == LoogaMenuNavigationPlacement.Primary
-                ? "Primary Navigation"
-                : "Secondary Navigation";
-
-            if (!supportsInheritance)
+            for (int i = 0; i < overrides.arraySize; i++)
             {
-                DrawScreenNavigationPlacement(layers, placement, title);
-                return;
-            }
-
-            DrawLayoutNavigationPlacement(layers, placement, title);
-        }
-
-        private static void DrawScreenNavigationPlacement(
-            SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement,
-            string title)
-        {
-            int layerIndex = FindLayer(layers, placement);
-            SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
-            bool enabled = layer != null && layer.FindPropertyRelative("_visible").boolValue;
-            bool expanded = enabled && layer.isExpanded;
-
-            bool nextExpanded = LoogaGUILayout.ToggleFoldoutLarge(
-                new GUIContent(title, "Enable this navigation area and edit the entries it contributes."),
-                enabled,
-                expanded,
-                () => DrawNavigationEntries(layer),
-                out bool nextEnabled);
-
-            if (nextEnabled != enabled)
-            {
-                if (layer == null)
-                    layer = AddLayer(layers, placement);
-
-                layer.FindPropertyRelative("_visible").boolValue = nextEnabled;
-                layer.isExpanded = nextEnabled;
-                return;
-            }
-
-            if (layer != null)
-                layer.isExpanded = nextExpanded;
-        }
-
-        private static void DrawLayoutNavigationPlacement(
-            SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement,
-            string title)
-        {
-            EditorGUILayout.LabelField(title, EditorStyles.label);
-
-            int layerIndex = FindLayer(layers, placement);
-            SerializedProperty layer = layerIndex >= 0 ? layers.GetArrayElementAtIndex(layerIndex) : null;
-            int mode = ResolveNavigationMode(layer, true);
-            int nextMode = LoogaGUILayout.Tabs(
-                mode,
-                LayoutNavigationModes,
-                $"{layers.serializedObject.targetObject.GetInstanceID()}_{layers.propertyPath}_{placement}");
-
-            if (nextMode != mode)
-                layer = ApplyNavigationMode(layers, layerIndex, placement, true, nextMode);
-
-            if (nextMode == 1 && layer != null)
-            {
-                using (new EditorGUI.IndentLevelScope())
-                    DrawNavigationEntries(layer);
-            }
-
-            EditorGUILayout.Space(2f);
-        }
-
-        private static void DrawNavigationEntries(SerializedProperty layer)
-        {
-            SerializedProperty entries = layer.FindPropertyRelative("_entries");
-            SerializedProperty defaultIndex = layer.FindPropertyRelative("_defaultEntryIndex");
-
-            EditorGUILayout.Space(2f);
-            if (entries.arraySize == 0)
-            {
-                EditorGUILayout.LabelField("No navigation entries.", EditorStyles.miniLabel);
-            }
-
-            for (int i = 0; i < entries.arraySize; i++)
-            {
-                SerializedProperty entry = entries.GetArrayElementAtIndex(i);
-                string summary = BuildEntrySummary(entry);
-                if (defaultIndex.intValue == i)
-                    summary += "  (Default)";
-
-                int entryIndex = i;
-                entry.isExpanded = LoogaGUILayout.FoldoutSmall(
-                    summary,
-                    entry.isExpanded,
-                    () => DrawNavigationEntry(entries, defaultIndex, entryIndex),
-                    entry);
-            }
-
-            if (GUILayout.Button("Add Entry"))
-                AddEntry(entries, defaultIndex);
-        }
-
-        private static void DrawNavigationEntry(
-            SerializedProperty entries,
-            SerializedProperty defaultIndex,
-            int index)
-        {
-            if (index < 0 || index >= entries.arraySize)
-                return;
-
-            SerializedProperty entry = entries.GetArrayElementAtIndex(index);
-            LoogaGUILayout.PropertyField(
-                entry.FindPropertyRelative("_displayName"),
-                new GUIContent("Label"));
-            LoogaGUILayout.PropertyField(
-                entry.FindPropertyRelative("_destination"),
-                new GUIContent("Destination"),
-                true);
-
-            SerializedProperty requirements = entry.FindPropertyRelative("_requirements");
-            requirements.isExpanded = LoogaGUILayout.FoldoutSmall(
-                "Advanced",
-                requirements.isExpanded,
-                () => LoogaGUILayout.PropertyField(
-                    requirements,
-                    new GUIContent("Requirements"),
-                    true),
-                requirements);
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                using (new EditorGUI.DisabledScope(defaultIndex.intValue == index))
-                {
-                    if (GUILayout.Button("Set as Default"))
-                        defaultIndex.intValue = index;
-                }
-
-                if (GUILayout.Button("Remove", GUILayout.Width(70f)))
-                {
-                    RemoveEntry(entries, defaultIndex, index);
-                    entries.serializedObject.ApplyModifiedProperties();
-                    GUIUtility.ExitGUI();
-                }
-            }
-        }
-
-        private static void DrawBackAction(SerializedProperty settings)
-        {
-            SerializedProperty showBack = settings.FindPropertyRelative("_showBackAction");
-            LoogaGUILayout.PropertyField(showBack, new GUIContent("Show Back Action"));
-            if (!showBack.boolValue)
-                return;
-
-            LoogaGUILayout.PropertyField(
-                settings.FindPropertyRelative("_backLabel"),
-                new GUIContent("Label"));
-            LoogaGUILayout.PropertyField(
-                settings.FindPropertyRelative("_backInputAction"),
-                new GUIContent("Input Action"));
-        }
-
-        private static int ResolveNavigationMode(SerializedProperty layer, bool supportsInheritance)
-        {
-            if (layer == null)
-                return 0;
-
-            bool visible = layer.FindPropertyRelative("_visible").boolValue;
-            if (!supportsInheritance)
-                return visible ? 1 : 0;
-
-            return visible ? 1 : 2;
-        }
-
-        private static SerializedProperty ApplyNavigationMode(
-            SerializedProperty layers,
-            int layerIndex,
-            LoogaMenuNavigationPlacement placement,
-            bool supportsInheritance,
-            int mode)
-        {
-            bool removeLayer = mode == 0;
-            if (removeLayer)
-            {
-                if (layerIndex >= 0)
-                    layers.DeleteArrayElementAtIndex(layerIndex);
-
-                return null;
-            }
-
-            SerializedProperty layer = layerIndex >= 0
-                ? layers.GetArrayElementAtIndex(layerIndex)
-                : AddLayer(layers, placement);
-            layer.FindPropertyRelative("_visible").boolValue = !supportsInheritance || mode == 1;
-            return layer;
-        }
-
-        private static SerializedProperty AddLayer(
-            SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement)
-        {
-            int index = layers.arraySize;
-            layers.InsertArrayElementAtIndex(index);
-            SerializedProperty layer = layers.GetArrayElementAtIndex(index);
-            layer.FindPropertyRelative("_placement").enumValueIndex = (int)placement;
-            layer.FindPropertyRelative("_visible").boolValue = true;
-            layer.FindPropertyRelative("_defaultEntryIndex").intValue = 0;
-            layer.FindPropertyRelative("_entries").arraySize = 0;
-            return layer;
-        }
-
-        private static int FindLayer(
-            SerializedProperty layers,
-            LoogaMenuNavigationPlacement placement)
-        {
-            for (int i = 0; i < layers.arraySize; i++)
-            {
-                SerializedProperty layer = layers.GetArrayElementAtIndex(i);
-                if (layer.FindPropertyRelative("_placement").enumValueIndex == (int)placement)
+                SerializedProperty candidate = overrides.GetArrayElementAtIndex(i);
+                if (candidate.FindPropertyRelative("_region").objectReferenceValue == region)
                     return i;
             }
 
             return -1;
         }
 
-        private static void AddEntry(SerializedProperty entries, SerializedProperty defaultIndex)
+        private static SerializedProperty AddOverride(
+            SerializedProperty overrides,
+            LoogaMenuRegionDefinition region)
         {
-            int index = entries.arraySize;
-            entries.InsertArrayElementAtIndex(index);
-            SerializedProperty entry = entries.GetArrayElementAtIndex(index);
-            entry.FindPropertyRelative("_displayName").stringValue = string.Empty;
-
-            SerializedProperty destination = entry.FindPropertyRelative("_destination");
-            destination.FindPropertyRelative("_screen").objectReferenceValue = null;
-            destination.FindPropertyRelative("_layout").objectReferenceValue = null;
-            destination.FindPropertyRelative("_openMode").enumValueIndex = (int)LoogaMenuOpenMode.Replace;
-            entry.FindPropertyRelative("_requirements").objectReferenceValue = null;
-            entry.isExpanded = true;
-
-            if (entries.arraySize == 1)
-                defaultIndex.intValue = 0;
+            int index = overrides.arraySize;
+            overrides.InsertArrayElementAtIndex(index);
+            SerializedProperty regionOverride = overrides.GetArrayElementAtIndex(index);
+            regionOverride.FindPropertyRelative("_region").objectReferenceValue = region;
+            regionOverride.FindPropertyRelative("_mode").enumValueIndex = (int)LoogaMenuRegionMode.Inherit;
+            regionOverride.FindPropertyRelative("_content").objectReferenceValue = null;
+            return regionOverride;
         }
 
-        private static void RemoveEntry(
-            SerializedProperty entries,
-            SerializedProperty defaultIndex,
-            int index)
+        private static LoogaMenuRegionContent CreateContent(
+            UnityEngine.Object owner,
+            LoogaMenuRegionDefinition region)
         {
-            entries.DeleteArrayElementAtIndex(index);
-            if (entries.arraySize == 0)
-            {
-                defaultIndex.intValue = 0;
-                return;
-            }
+            LoogaMenuRegionContent content =
+                ScriptableObject.CreateInstance(region.ContentType) as LoogaMenuRegionContent;
+            content.name = region.DisplayName;
+            string ownerPath = AssetDatabase.GetAssetPath(owner);
+            if (!string.IsNullOrWhiteSpace(ownerPath))
+                AssetDatabase.AddObjectToAsset(content, owner);
 
-            if (defaultIndex.intValue > index)
-                defaultIndex.intValue--;
-            else if (defaultIndex.intValue >= entries.arraySize)
-                defaultIndex.intValue = entries.arraySize - 1;
+            Undo.RegisterCreatedObjectUndo(content, "Create Menu Region Content");
+            EditorUtility.SetDirty(owner);
+            EditorUtility.SetDirty(content);
+            AssetDatabase.SaveAssets();
+            return content;
         }
+    }
 
-        private static string BuildEntrySummary(SerializedProperty entry)
+    internal static class LoogaMenuStructureEditorUtility
+    {
+        public static LoogaMenuStructureProfile FindStructure()
         {
-            string label = entry.FindPropertyRelative("_displayName").stringValue;
-            if (string.IsNullOrWhiteSpace(label))
-                label = "Unnamed Entry";
+            LoogaMenuRoot root = LoogaMenuEditorUtility.FindMenuRoot();
+            if (root != null && root.Structure != null)
+                return root.Structure;
 
-            SerializedProperty destination = entry.FindPropertyRelative("_destination");
-            LoogaMenuScreenDefinition screen = destination.FindPropertyRelative("_screen").objectReferenceValue
-                as LoogaMenuScreenDefinition;
-            LoogaMenuScreenLayout layout = destination.FindPropertyRelative("_layout").objectReferenceValue
-                as LoogaMenuScreenLayout;
+            string[] guids = AssetDatabase.FindAssets($"t:{nameof(LoogaMenuStructureProfile)}");
+            if (guids.Length != 1)
+                return null;
 
-            string target = screen == null ? "No Destination" : screen.name;
-            if (screen != null && layout != null)
-                target += $" / {layout.name}";
-
-            return $"{label}  ->  {target}";
+            return AssetDatabase.LoadAssetAtPath<LoogaMenuStructureProfile>(
+                AssetDatabase.GUIDToAssetPath(guids[0]));
         }
     }
 }

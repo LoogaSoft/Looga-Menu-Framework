@@ -10,6 +10,7 @@ namespace LoogaSoft.Menu
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(CanvasGroup))]
+    [RequireComponent(typeof(LoogaMenuRegionHost))]
     [AddComponentMenu("LoogaSoft/Menu/Action Bar View")]
     public sealed class LoogaMenuActionBarView : MonoBehaviour
     {
@@ -27,6 +28,7 @@ namespace LoogaSoft.Menu
         private LoogaMenuManager _menuManager;
         private ILoogaMenuActionBar _actionBar;
         private CanvasGroup _canvasGroup;
+        private LoogaMenuRegionHost _regionHost;
 
         private void Awake()
         {
@@ -99,7 +101,8 @@ namespace LoogaSoft.Menu
         private void BindActionBar()
         {
             ILoogaMenuActionBar next = null;
-            _menuManager?.TryGetActionBar(out next);
+            if (_regionHost != null)
+                _menuManager?.TryGetActionBar(_regionHost.Region, out next);
             if (ReferenceEquals(_actionBar, next))
                 return;
 
@@ -173,6 +176,7 @@ namespace LoogaSoft.Menu
         {
             _actionParent ??= transform as RectTransform;
             _canvasGroup ??= GetComponent<CanvasGroup>();
+            _regionHost ??= GetComponent<LoogaMenuRegionHost>();
             if (_itemTemplate == null && _actionParent != null)
             {
                 _itemTemplate = _actionParent.GetComponentInChildren<LoogaMenuActionBarItemView>(true);

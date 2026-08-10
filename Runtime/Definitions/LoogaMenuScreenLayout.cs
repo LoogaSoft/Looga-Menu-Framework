@@ -18,25 +18,18 @@ namespace LoogaSoft.Menu
         [SerializeField, LoogaList]
         private LoogaMenuScreenPanelEntry[] _panels = Array.Empty<LoogaMenuScreenPanelEntry>();
 
-        [Header("Navigation")]
-        [Tooltip("Layers with the same placement replace the screen layer while this layout is active.")]
-        [InspectorName("Layer Overrides")]
-        [SerializeField] private LoogaMenuNavigationLayer[] _navigationOverrides = Array.Empty<LoogaMenuNavigationLayer>();
-
-        [Header("Action Bar")]
-        [InspectorName("Override")]
-        [SerializeField] private LoogaMenuActionBarOverride _actionBar;
+        [Header("Regions")]
+        [SerializeField] private LoogaMenuRegionOverride[] _regionOverrides = Array.Empty<LoogaMenuRegionOverride>();
 
         public string DisplayName => name;
         public string Description => _description;
         public LoogaMenuScreenPanelEntry[] Panels => _panels;
-        public LoogaMenuNavigationLayer[] NavigationOverrides => _navigationOverrides;
-        public LoogaMenuActionBarOverride ActionBar => _actionBar;
+        public LoogaMenuRegionOverride[] RegionOverrides => _regionOverrides;
 
         private void OnValidate()
         {
             _panels ??= Array.Empty<LoogaMenuScreenPanelEntry>();
-            _navigationOverrides ??= Array.Empty<LoogaMenuNavigationLayer>();
+            _regionOverrides ??= Array.Empty<LoogaMenuRegionOverride>();
         }
     }
 }

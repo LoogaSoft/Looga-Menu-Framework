@@ -11,6 +11,7 @@ Use these rules when deciding what to create:
 - A **screen** is a destination in menu history. Opening another screen adds or replaces a history entry.
 - A **layout** is one composition of the same screen. Changing a layout does not add a history entry.
 - A **panel** is one reusable UI region that a layout shows.
+- A **region** is one shared presentation area, such as navigation, actions, a header, or a background.
 - A **destination** selects a screen, an optional layout, and an open mode.
 
 Examples:
@@ -24,16 +25,17 @@ Do not split a stable UI region into several panels only because it contains sev
 
 ## Basic Setup
 
-1. Add `LoogaMenuRoot` to the main menu canvas or root object.
-2. Assign the default background panel and action-bar settings.
-3. Create one `LoogaMenuPanelDefinition` for each reusable panel.
-4. Add `LoogaMenuPanel` to each authored panel object and assign its definition.
-5. Create a `LoogaMenuScreenDefinition` for each menu-history destination.
-6. Create owned `LoogaMenuScreenLayout` sub-assets for the screen's supported compositions.
-7. Add the required panel definitions to each layout.
-8. Select the screen's default layout.
-9. Add typed navigation destinations where the screen needs navigation entries.
-10. Open the screen through `LoogaMenuDestination`, `LoogaMenuOpenButton`, input routing, or code.
+1. Create one `LoogaMenuStructureProfile` for the project.
+2. Add typed region definitions and default content to the structure profile.
+3. Add `LoogaMenuRoot` to the main menu canvas and assign the structure profile.
+4. Add `LoogaMenuRegionHost` to each shared presenter and select its region.
+5. Create one `LoogaMenuPanelDefinition` for each reusable panel.
+6. Add `LoogaMenuPanel` to each authored panel object and assign its definition.
+7. Create one `LoogaMenuScreenDefinition` for each menu-history destination.
+8. Create owned `LoogaMenuScreenLayout` sub-assets for the screen's supported compositions.
+9. Add the required panel definitions to each layout.
+10. Override or hide configured regions only where the screen or layout differs from the project default.
+11. Open the screen through `LoogaMenuDestination`, `LoogaMenuOpenButton`, input routing, or code.
 
 Panel objects may start disabled. The menu root registers them and controls their active state.
 
@@ -42,9 +44,7 @@ Panel objects may start disabled. The menu root registers them and controls thei
 `LoogaMenuScreenDefinition` owns the behavior shared by one menu destination:
 
 - Layouts and the default layout.
-- Primary and secondary navigation layers.
-- Action-bar behavior.
-- Background behavior.
+- Region overrides.
 - Open requirements.
 - Input policy.
 - Default open mode.
@@ -57,8 +57,7 @@ Create a new screen when the menu needs an independent history entry. Back retur
 `LoogaMenuScreenLayout` is an owned sub-asset of a screen. It defines:
 
 - The panels shown together.
-- Optional navigation overrides.
-- An optional action-bar override.
+- Optional region overrides.
 
 Use layouts for states of the same destination. For example, a Faction Services screen can own Faction Selection, Shop Buy, Shop Sell, Missions, and Jobs layouts. Changing among these layouts keeps one screen-history entry.
 
@@ -74,6 +73,7 @@ A panel is one reusable UGUI region, such as:
 - Shop buy list.
 - Settings.
 - Shared background.
+- Compact profile and currency header regions.
 - Shared action bar.
 
 Each authored panel object needs a `LoogaMenuPanel` and a matching `LoogaMenuPanelDefinition`.
@@ -90,24 +90,15 @@ Panels can implement `ILoogaMenuActionProvider` to contribute contextual action-
 
 Use the same destination type in buttons, input bindings, and navigation entries. The inspector limits layout selection to layouts owned by the selected screen.
 
-## Navigation
+## Shared Regions
 
-Screens contribute navigation entries to shared presenter objects. A navigation entry contains a display name, a typed destination, and optional requirements.
+`LoogaMenuStructureProfile` defines the shared presentation areas available to a project. Each `LoogaMenuRegionDefinition` has a typed `LoogaMenuRegionContent` default. Screens and layouts can inherit, override, or hide that content.
 
-Two explicit placements are available:
+The framework includes content types for navigation entries, contextual actions, and shared panels. Projects can add more content and presenter types without changing screen or layout definitions.
 
-- `Primary` for major sections, such as Inventory and Faction Area.
-- `Secondary` for local choices, such as Buy and Sell.
+Add `LoogaMenuRegionHost` to each authored presenter and assign the matching region. For example, one project can define Primary Navigation, Secondary Navigation, Action Bar, Header, and Background regions. Another project can use a different set without changing the framework.
 
-Add `LoogaMenuNavigationBar` or another `ILoogaMenuNavigationBar` presenter to the authored navigation UI. Each presenter selects one placement and displays the active screen or layout entries for that placement.
-
-A layout can replace a screen navigation layer at the same placement. Use this when only some layouts need a local navigation row.
-
-## Action Bar
-
-The action bar is an explicit framework feature. `LoogaMenuActionBarSettings` controls the shared panel and Back command. A screen or layout can inherit, replace, or hide it.
-
-Add an `ILoogaMenuActionBar` presenter to the authored action-bar UI. Visible panels contribute contextual commands through `ILoogaMenuActionProvider`.
+Visible panels can implement `ILoogaMenuActionProvider` to contribute contextual commands to an action region. Call `LoogaMenuPanel.NotifyActionsChanged()` when those commands change.
 
 ## Open Modes
 
@@ -132,6 +123,6 @@ Open the Menu Preview window from the LoogaSoft menu. Each screen appears once. 
 - Prefer one obvious authoring path.
 - Use screens for history, layouts for composition, and panels for reusable regions.
 - Use typed destinations instead of string identifiers.
-- Keep navigation and action bars shared; screens contribute data instead of duplicating their UI.
+- Keep navigation, menu headers, and action bars shared; screens contribute data instead of duplicating their UI.
 - Keep layout changes out of the Back stack.
 - Keep game-specific view logic in the game project.

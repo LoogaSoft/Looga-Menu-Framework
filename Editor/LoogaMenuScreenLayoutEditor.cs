@@ -37,10 +37,7 @@ namespace LoogaSoft.Menu.Editor
                 LoogaGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
             }
 
-            LoogaMenuScreenAuthoringGUI.DrawNavigation(
-                layoutObject.FindProperty("_navigationOverrides"),
-                supportsInheritance: true);
-            LoogaMenuScreenAuthoringGUI.DrawActionBar(layoutObject.FindProperty("_actionBar"));
+            LoogaMenuScreenAuthoringGUI.DrawRegions(layoutObject.FindProperty("_regionOverrides"));
         }
     }
 }
