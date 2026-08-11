@@ -8,11 +8,12 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
-        private static readonly string[] InspectorTabs = { "Settings", "Layouts" };
+        private static readonly string[] InspectorTabs = { "Settings", "Layouts", "Regions" };
 
         private LoogaMenuScreenLayout _selectedLayout;
         private SerializedObject _selectedLayoutObject;
         private bool _selectedLayoutExpanded = true;
+        private int _selectedLayoutTab;
         private int _selectedTab;
 
         private void OnEnable()
@@ -32,10 +33,18 @@ namespace LoogaSoft.Menu.Editor
                 InspectorTabs,
                 $"{nameof(LoogaMenuScreenDefinitionEditor)}_{target.GetInstanceID()}");
 
-            if (_selectedTab == 1)
-                DrawLayouts((LoogaMenuScreenDefinition)target);
-            else
-                DrawSettings();
+            switch (_selectedTab)
+            {
+                case 1:
+                    DrawLayouts((LoogaMenuScreenDefinition)target);
+                    break;
+                case 2:
+                    DrawRegions();
+                    break;
+                default:
+                    DrawSettings();
+                    break;
+            }
 
             serializedObject.ApplyModifiedProperties();
             if (_selectedTab == 0)
@@ -45,12 +54,16 @@ namespace LoogaSoft.Menu.Editor
         private void DrawSettings()
         {
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_description"));
-            LoogaMenuScreenAuthoringGUI.DrawRegions(serializedObject.FindProperty("_regionOverrides"));
 
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
+        }
+
+        private void DrawRegions()
+        {
+            LoogaMenuScreenAuthoringGUI.DrawRegions(serializedObject.FindProperty("_regionOverrides"));
         }
 
         private void DrawLayouts(LoogaMenuScreenDefinition screen)
@@ -255,8 +268,10 @@ namespace LoogaSoft.Menu.Editor
                     RenameLayout(screen, _selectedLayout, nextName);
 
                 _selectedLayoutObject.UpdateIfRequiredOrScript();
-                LoogaMenuScreenLayoutEditor.DrawBody(
+                _selectedLayoutTab = LoogaMenuScreenLayoutEditor.DrawBody(
                     _selectedLayoutObject,
+                    _selectedLayoutTab,
+                    $"{nameof(LoogaMenuScreenDefinitionEditor)}_Layout_{_selectedLayout.GetInstanceID()}",
                     propertyName => DrawLoogaProperty(_selectedLayoutObject, propertyName));
                 _selectedLayoutObject.ApplyModifiedProperties();
             });
@@ -269,6 +284,7 @@ namespace LoogaSoft.Menu.Editor
 
             _selectedLayout = layout;
             _selectedLayoutObject = layout != null ? new SerializedObject(layout) : null;
+            _selectedLayoutTab = 0;
         }
 
         private static void RenameLayout(

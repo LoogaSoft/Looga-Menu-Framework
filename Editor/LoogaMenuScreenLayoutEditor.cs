@@ -8,6 +8,10 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenLayout))]
     public sealed class LoogaMenuScreenLayoutEditor : LoogaEditor
     {
+        private static readonly string[] InspectorTabs = { "Composition", "Regions" };
+
+        private int _selectedTab;
+
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
@@ -15,7 +19,11 @@ namespace LoogaSoft.Menu.Editor
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
 
-            DrawBody(serializedObject, propertyName => DrawLoogaProperty(propertyName));
+            _selectedTab = DrawBody(
+                serializedObject,
+                _selectedTab,
+                $"{nameof(LoogaMenuScreenLayoutEditor)}_{target.GetInstanceID()}",
+                propertyName => DrawLoogaProperty(propertyName));
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -24,8 +32,19 @@ namespace LoogaSoft.Menu.Editor
         /// Draws the editable layout fields without creating a nested editor instance.
         /// Screen inspectors use this method for their selected-layout detail view.
         /// </summary>
-        internal static void DrawBody(SerializedObject layoutObject, Action<string> drawProperty = null)
+        internal static int DrawBody(
+            SerializedObject layoutObject,
+            int selectedTab,
+            string controlId,
+            Action<string> drawProperty = null)
         {
+            selectedTab = LoogaGUILayout.Tabs(selectedTab, InspectorTabs, controlId);
+            if (selectedTab == 1)
+            {
+                LoogaMenuScreenAuthoringGUI.DrawRegions(layoutObject.FindProperty("_regionOverrides"));
+                return selectedTab;
+            }
+
             if (drawProperty != null)
             {
                 drawProperty("_description");
@@ -37,7 +56,7 @@ namespace LoogaSoft.Menu.Editor
                 LoogaGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
             }
 
-            LoogaMenuScreenAuthoringGUI.DrawRegions(layoutObject.FindProperty("_regionOverrides"));
+            return selectedTab;
         }
     }
 }

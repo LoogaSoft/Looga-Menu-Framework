@@ -87,9 +87,11 @@ namespace LoogaSoft.Menu.Editor
                 string countSuffix = hasLayoutFoldout ? $" ({layoutCount})" : string.Empty;
                 GUIContent label = new(
                     screen.DisplayName + countSuffix,
-                    hasLayoutFoldout
-                        ? "Show or hide this screen's layouts."
-                        : "Preview this screen.");
+                    BuildRowTooltip(
+                        hasLayoutFoldout
+                            ? "Expand or collapse this screen's layouts."
+                            : "Preview this screen.",
+                        "screen definition"));
 
                 bool canPreview = scenePanels.Length > 0;
                 if (DrawScreenHeader(
@@ -215,7 +217,7 @@ namespace LoogaSoft.Menu.Editor
 
             GUIContent content = new(
                 string.IsNullOrWhiteSpace(displayName) ? layout.name : displayName,
-                "Preview this layout.");
+                BuildRowTooltip("Preview this layout.", "layout definition"));
             GUIStyle buttonStyle = GetConfigurationButtonStyle();
             using (new EditorGUI.DisabledScope(!canPreview))
             {
@@ -251,6 +253,13 @@ namespace LoogaSoft.Menu.Editor
             }
 
             return false;
+        }
+
+        private static string BuildRowTooltip(string leftClickAction, string definitionName)
+        {
+            return $"Left-click: {leftClickAction}\n"
+                   + $"Right-click: Open and ping the {definitionName}.\n"
+                   + "Middle-click: Select and ping the corresponding hierarchy object(s).";
         }
 
         private static GUIStyle GetConfigurationButtonStyle()
