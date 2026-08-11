@@ -14,6 +14,7 @@ namespace LoogaSoft.Menu.Editor
         private const float ConfigurationTextInsetPixels = 8f;
         private const float ExpandedScreenBottomPaddingPixels = 7f;
         private const float HeaderArrowTextGapPixels = 4f;
+        private const float RevealButtonOutlinePixels = 1f;
         private const string HierarchyIconPath =
             "Packages/com.loogasoft.loogamenuframework/Editor/Icons/Remix/node-tree.png";
         private const string DefinitionIconPath =
@@ -25,7 +26,6 @@ namespace LoogaSoft.Menu.Editor
         private static Texture _definitionIcon;
         private static GUIContent _buttonTooltipContent;
         private static GUIStyle _configurationButtonStyle;
-        private static GUIStyle _sceneButtonStyle;
         private Vector2 _scrollPosition;
 
         [MenuItem("LoogaSoft/Menu Framework/Menu Preview")]
@@ -99,8 +99,8 @@ namespace LoogaSoft.Menu.Editor
                 GUIContent label = new(
                     screen.DisplayName + countSuffix,
                     hasLayoutFoldout
-                        ? "Left-click to show layouts. Right-click to open and ping the screen definition."
-                        : "Left-click to preview. Right-click to open and ping the screen definition.");
+                        ? "Show or hide this screen's layouts."
+                        : "Preview this screen.");
 
                 bool canPreview = scenePanels.Length > 0;
                 bool canSelect = HasSceneObjects(screen, screen.DefaultLayout, scenePanels);
@@ -213,9 +213,6 @@ namespace LoogaSoft.Menu.Editor
                 "Ping Definition Asset",
                 () => SelectDefinitionAsset(definition));
 
-            if (HandleContextClick(interactiveRect, definition))
-                return false;
-
             if (current.type != EventType.MouseDown
                 || current.button != 0
                 || !interactiveRect.Contains(current.mousePosition))
@@ -257,7 +254,7 @@ namespace LoogaSoft.Menu.Editor
 
             GUIContent content = new(
                 string.IsNullOrWhiteSpace(displayName) ? layout.name : displayName,
-                "Left-click to preview. Right-click to open and ping the layout definition.");
+                "Preview this layout.");
             float reservedRightWidth = rowRect.xMax - hierarchyButtonRect.xMin + outerInset;
             GUIStyle buttonStyle = GetConfigurationButtonStyle(reservedRightWidth);
             bool pointerOverRevealButton = hierarchyButtonRect.Contains(Event.current.mousePosition)
@@ -288,7 +285,6 @@ namespace LoogaSoft.Menu.Editor
                 layout != null,
                 "Ping Definition Asset",
                 () => SelectDefinitionAsset(layout));
-            HandleContextClick(rowRect, layout);
         }
 
         private static void DrawRevealButton(
@@ -304,20 +300,15 @@ namespace LoogaSoft.Menu.Editor
             bool clicked;
             using (new EditorGUI.DisabledScope(!enabled))
             {
-                clicked = GUI.Button(rect, tooltipContent, GetRevealButtonStyle());
+                clicked = GUI.Button(rect, tooltipContent, GUIStyle.none);
 
-                if (Event.current.type == EventType.Repaint && icon != null)
+                if (Event.current.type == EventType.Repaint)
                 {
-                    float iconSize = Mathf.Min(
-                        LoogaEditorStyle.Pixels(RevealIconSizePixels),
-                        Mathf.Min(rect.width, rect.height));
-                    Rect iconRect = new(
-                        rect.center.x - iconSize * 0.5f,
-                        rect.center.y - iconSize * 0.5f,
-                        iconSize,
-                        iconSize);
-                    iconRect = LoogaEditorStyle.PixelSnap(iconRect);
-                    GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+                    if (enabled && rect.Contains(Event.current.mousePosition))
+                        LoogaEditorFoldouts.DrawHoverRect(rect);
+
+                    DrawRevealButtonOutline(rect, enabled);
+                    DrawRevealButtonIcon(rect, icon, enabled);
                 }
             }
 
@@ -367,17 +358,41 @@ namespace LoogaSoft.Menu.Editor
             return _configurationButtonStyle;
         }
 
-        private static GUIStyle GetRevealButtonStyle()
+        private static void DrawRevealButtonOutline(Rect rect, bool enabled)
         {
-            return _sceneButtonStyle ??= new GUIStyle(EditorStyles.miniButton)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fixedWidth = 0f,
-                fixedHeight = 0f,
-                stretchWidth = true,
-                stretchHeight = true,
-                padding = new RectOffset()
-            };
+            float lineWidth = LoogaEditorStyle.Pixels(RevealButtonOutlinePixels);
+            Color color = LoogaEditorStyle.SeparatorColor;
+            if (!enabled)
+                color.a *= 0.45f;
+
+            EditorGUI.DrawRect(new Rect(rect.xMin, rect.yMin, rect.width, lineWidth), color);
+            EditorGUI.DrawRect(new Rect(rect.xMin, rect.yMax - lineWidth, rect.width, lineWidth), color);
+            EditorGUI.DrawRect(new Rect(rect.xMin, rect.yMin, lineWidth, rect.height), color);
+            EditorGUI.DrawRect(new Rect(rect.xMax - lineWidth, rect.yMin, lineWidth, rect.height), color);
+        }
+
+        private static void DrawRevealButtonIcon(Rect rect, Texture icon, bool enabled)
+        {
+            if (icon == null)
+                return;
+
+            float iconSize = Mathf.Min(
+                LoogaEditorStyle.Pixels(RevealIconSizePixels),
+                Mathf.Min(rect.width, rect.height));
+            Rect iconRect = new(
+                rect.center.x - iconSize * 0.5f,
+                rect.center.y - iconSize * 0.5f,
+                iconSize,
+                iconSize);
+            iconRect = LoogaEditorStyle.PixelSnap(iconRect);
+
+            Color previousColor = GUI.color;
+            Color iconColor = LoogaEditorStyle.TextColor;
+            if (!enabled)
+                iconColor.a *= 0.45f;
+            GUI.color = iconColor;
+            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+            GUI.color = previousColor;
         }
 
         private static void GetRevealButtonRects(
@@ -405,19 +420,6 @@ namespace LoogaSoft.Menu.Editor
 
             Selection.activeObject = definition;
             EditorGUIUtility.PingObject(definition);
-        }
-
-        private static bool HandleContextClick(Rect rect, UnityEngine.Object definition)
-        {
-            Event current = Event.current;
-            if (current.type != EventType.ContextClick || !rect.Contains(current.mousePosition))
-                return false;
-
-            Selection.activeObject = definition;
-            EditorGUIUtility.PingObject(definition);
-            AssetDatabase.OpenAsset(definition);
-            current.Use();
-            return true;
         }
 
         private static int CountLayouts(LoogaMenuScreenLayout[] layouts)
