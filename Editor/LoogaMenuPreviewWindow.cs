@@ -8,10 +8,10 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
-        private const float SceneButtonSizePixels = 24f;
-        private const float SceneIconSizePixels = 14f;
-        private const float SceneButtonInsetPixels = 3f;
+        private const float SceneIconSizePixels = 18f;
+        private const float SceneButtonInsetPixels = 5f;
         private const float ConfigurationTextInsetPixels = 8f;
+        private const float ExpandedScreenBottomPaddingPixels = 7f;
         private const float HeaderArrowTextGapPixels = 4f;
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
@@ -145,6 +145,8 @@ namespace LoogaSoft.Menu.Editor
                         () => SelectSceneObjects(screen, layout, scenePanels));
                     configurationIndex++;
                 }
+
+                EditorGUILayout.Space(LoogaEditorStyle.Pixels(ExpandedScreenBottomPaddingPixels));
             }
         }
 
@@ -179,8 +181,8 @@ namespace LoogaSoft.Menu.Editor
             Rect interactiveRect = clickRect;
             interactiveRect.xMax = sceneButtonRect.xMin - outerInset;
             Event current = Event.current;
-            if (interactiveRect.Contains(current.mousePosition))
-                LoogaEditorFoldouts.DrawHoverRect(interactiveRect);
+            if (clickRect.Contains(current.mousePosition))
+                LoogaEditorFoldouts.DrawHoverRect(clickRect);
 
             GUI.Label(contentRect, label, EditorStyles.boldLabel);
             if (showFoldout)
@@ -330,9 +332,7 @@ namespace LoogaSoft.Menu.Editor
 
         private static Rect GetSceneButtonRect(Rect rowRect, float outerInset)
         {
-            float requestedSize = LoogaEditorStyle.Pixels(SceneButtonSizePixels);
-            float availableSize = Mathf.Max(0f, rowRect.height - outerInset * 2f);
-            float size = Mathf.Min(requestedSize, availableSize);
+            float size = Mathf.Max(0f, rowRect.height - outerInset * 2f);
             return LoogaEditorStyle.PixelSnap(new Rect(
                 rowRect.xMax - outerInset - size,
                 rowRect.center.y - size * 0.5f,
