@@ -8,13 +8,16 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
-        private const float HeaderControlGap = 4f;
-        private const float SceneButtonSize = 20f;
         private const float ConfigurationRowHeight = 22f;
+        private const float SceneButtonOuterInsetPixels = 2f;
+        private const float SceneIconInsetPixels = 2f;
+        private const float HeaderArrowTextGapPixels = 4f;
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
         private static GUIContent _selectSceneContent;
+        private static GUIContent _selectSceneTooltipContent;
+        private static GUIStyle _configurationButtonStyle;
         private Vector2 _scrollPosition;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
@@ -114,7 +117,6 @@ namespace LoogaSoft.Menu.Editor
                 if (!expanded)
                     return;
 
-                EditorGUILayout.Space(2f);
                 foreach (LoogaMenuScreenLayout layout in screen.Layouts)
                 {
                     if (layout == null)
@@ -129,7 +131,6 @@ namespace LoogaSoft.Menu.Editor
                         () => Preview(screen, layout),
                         () => SelectSceneObjects(screen, layout, scenePanels));
                 }
-                EditorGUILayout.Space(2f);
             }
         }
 
@@ -148,23 +149,27 @@ namespace LoogaSoft.Menu.Editor
             headerRect = LoogaEditorStyle.PixelSnap(headerRect);
             clickRect = LoogaEditorStyle.PixelSnap(clickRect);
 
-            Rect standardArrowRect = LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect);
+            float outerInset = LoogaEditorStyle.Pixels(SceneButtonOuterInsetPixels);
+            float sceneButtonSize = Mathf.Max(0f, headerRect.height - outerInset * 2f);
             Rect sceneButtonRect = new(
-                standardArrowRect.xMax - SceneButtonSize,
-                headerRect.center.y - SceneButtonSize * 0.5f,
-                SceneButtonSize,
-                SceneButtonSize);
+                headerRect.xMax - outerInset - sceneButtonSize,
+                headerRect.yMin + outerInset,
+                sceneButtonSize,
+                sceneButtonSize);
             sceneButtonRect = LoogaEditorStyle.PixelSnap(sceneButtonRect);
 
-            Rect arrowRect = standardArrowRect;
-            if (showFoldout)
-                arrowRect.x = sceneButtonRect.xMin - HeaderControlGap - arrowRect.width;
-
             Rect contentRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(headerRect, false);
-            contentRect.xMax = (showFoldout ? arrowRect.xMin : sceneButtonRect.xMin) - HeaderControlGap;
+            Rect arrowRect = LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect);
+            if (showFoldout)
+            {
+                arrowRect.x = contentRect.xMin;
+                contentRect.xMin = arrowRect.xMax + LoogaEditorStyle.Pixels(HeaderArrowTextGapPixels);
+            }
+
+            contentRect.xMax = sceneButtonRect.xMin - outerInset;
 
             Rect interactiveRect = clickRect;
-            interactiveRect.xMax = sceneButtonRect.xMin - HeaderControlGap;
+            interactiveRect.xMax = sceneButtonRect.xMin - outerInset;
             Event current = Event.current;
             if (interactiveRect.Contains(current.mousePosition))
                 LoogaEditorFoldouts.DrawHoverRect(interactiveRect);
@@ -209,41 +214,65 @@ namespace LoogaSoft.Menu.Editor
             Action selectSceneObjects)
         {
             Rect rowRect = EditorGUILayout.GetControlRect(false, ConfigurationRowHeight);
+            rowRect.yMax += EditorGUIUtility.standardVerticalSpacing;
             rowRect = LoogaEditorStyle.PixelSnap(rowRect);
+            float outerInset = LoogaEditorStyle.Pixels(SceneButtonOuterInsetPixels);
+            float sceneButtonSize = Mathf.Max(0f, rowRect.height - outerInset * 2f);
             Rect sceneButtonRect = new(
-                rowRect.xMax - SceneButtonSize,
-                rowRect.center.y - SceneButtonSize * 0.5f,
-                SceneButtonSize,
-                SceneButtonSize);
+                rowRect.xMax - outerInset - sceneButtonSize,
+                rowRect.yMin + outerInset,
+                sceneButtonSize,
+                sceneButtonSize);
             sceneButtonRect = LoogaEditorStyle.PixelSnap(sceneButtonRect);
-            Rect previewRect = rowRect;
-            previewRect.xMax = sceneButtonRect.xMin - HeaderControlGap;
 
             GUIContent content = new(
                 string.IsNullOrWhiteSpace(displayName) ? layout.name : displayName,
                 "Left-click to preview. Right-click to open and ping the layout definition.");
-            using (new EditorGUI.DisabledScope(!canPreview))
+            GUIStyle buttonStyle = GetConfigurationButtonStyle(sceneButtonSize + outerInset * 2f);
+            bool pointerOverSceneButton = sceneButtonRect.Contains(Event.current.mousePosition);
+            using (new EditorGUI.DisabledScope(!canPreview && !pointerOverSceneButton))
             {
-                if (GUI.Button(previewRect, content, EditorStyles.miniButton))
+                if (pointerOverSceneButton)
+                {
+                    GUI.Box(rowRect, content, buttonStyle);
+                }
+                else if (GUI.Button(rowRect, content, buttonStyle))
+                {
                     preview?.Invoke();
+                }
             }
 
             DrawSceneSelectionButton(sceneButtonRect, canSelect, selectSceneObjects);
-            HandleContextClick(previewRect, layout);
+            HandleContextClick(rowRect, layout);
         }
 
         private static void DrawSceneSelectionButton(Rect rect, bool canSelect, Action selectSceneObjects)
         {
             GUIContent content = GetSelectSceneContent();
-            content.tooltip = canSelect
+            GUIContent tooltipContent = GetSelectSceneTooltipContent();
+            tooltipContent.tooltip = canSelect
                 ? "Select the corresponding panel object(s) in the hierarchy."
                 : "No corresponding panel objects are loaded in the open scene.";
 
+            bool clicked;
             using (new EditorGUI.DisabledScope(!canSelect))
             {
-                if (GUI.Button(rect, content, EditorStyles.miniButton))
-                    selectSceneObjects?.Invoke();
+                clicked = GUI.Button(rect, tooltipContent, EditorStyles.miniButton);
+
+                if (Event.current.type == EventType.Repaint && content.image != null)
+                {
+                    float iconInset = LoogaEditorStyle.Pixels(SceneIconInsetPixels);
+                    Rect iconRect = new(
+                        rect.xMin + iconInset,
+                        rect.yMin + iconInset,
+                        Mathf.Max(0f, rect.width - iconInset * 2f),
+                        Mathf.Max(0f, rect.height - iconInset * 2f));
+                    GUI.DrawTexture(iconRect, content.image, ScaleMode.ScaleToFit, true);
+                }
             }
+
+            if (clicked)
+                selectSceneObjects?.Invoke();
         }
 
         private static GUIContent GetSelectSceneContent()
@@ -258,6 +287,23 @@ namespace LoogaSoft.Menu.Editor
             icon ??= EditorGUIUtility.IconContent("ViewToolZoom").image;
             _selectSceneContent = new GUIContent(icon);
             return _selectSceneContent;
+        }
+
+        private static GUIContent GetSelectSceneTooltipContent()
+        {
+            return _selectSceneTooltipContent ??= new GUIContent();
+        }
+
+        private static GUIStyle GetConfigurationButtonStyle(float reservedRightWidth)
+        {
+            _configurationButtonStyle ??= new GUIStyle(EditorStyles.miniButton)
+            {
+                alignment = TextAnchor.MiddleLeft
+            };
+
+            _configurationButtonStyle.padding.left = Mathf.Max(6, EditorStyles.miniButton.padding.left);
+            _configurationButtonStyle.padding.right = Mathf.CeilToInt(reservedRightWidth);
+            return _configurationButtonStyle;
         }
 
         private static bool HandleContextClick(Rect rect, UnityEngine.Object definition)
