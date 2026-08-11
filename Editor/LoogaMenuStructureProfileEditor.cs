@@ -25,12 +25,12 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.Space(4f);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Add Panel Region"))
-                    CreateRegion<LoogaMenuPanelRegionContent>(regions, "Region");
-                if (GUILayout.Button("Add Navigation Region"))
+                if (GUILayout.Button("Add Panel Slot"))
+                    CreateRegion<LoogaMenuPanelRegionContent>(regions, "Shared Panel");
+                if (GUILayout.Button("Add Navigation Slot"))
                     CreateRegion<LoogaMenuNavigationRegionContent>(regions, "Navigation");
-                if (GUILayout.Button("Add Action Region"))
-                    CreateRegion<LoogaMenuActionRegionContent>(regions, "Action Bar");
+                if (GUILayout.Button("Add Action Slot"))
+                    CreateRegion<LoogaMenuActionRegionContent>(regions, "Actions");
             }
 
             serializedObject.ApplyModifiedProperties();

@@ -377,12 +377,12 @@ namespace LoogaSoft.Menu.Editor
             List<LoogaMenuPanelDefinition> regionPanels = new();
             foreach (LoogaMenuRegionDefinition region in structure.Regions)
             {
-                LoogaMenuRegionContent content = screen.ResolveRegion(layout, region);
-                if (content == null)
-                    continue;
-
-                regionPanels.Clear();
-                content.CollectPanels(regionPanels);
+                LoogaMenuRegionPanelResolver.Collect(
+                    root,
+                    screen,
+                    layout,
+                    region,
+                    regionPanels);
                 foreach (LoogaMenuPanelDefinition panel in regionPanels)
                 {
                     if (panel != null)

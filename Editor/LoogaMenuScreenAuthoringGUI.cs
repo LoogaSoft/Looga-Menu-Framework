@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu.Editor
 {
-    /// <summary>Draws configured region overrides for screens and layouts.</summary>
+    /// <summary>Draws configured shared-slot overrides for screens and layouts.</summary>
     internal static class LoogaMenuScreenAuthoringGUI
     {
         private const float HeaderControlGap = 6f;
@@ -16,7 +16,32 @@ namespace LoogaSoft.Menu.Editor
         private const float ElementPadding = 2f;
         private const float ReorderHandleClearance = 14f;
 
-        private static readonly string[] RegionModes = { "Inherit", "Override", "Hide" };
+        private static readonly GUIContent[] StandardRegionModes =
+        {
+            new("Inherit"),
+            new("Override"),
+            new("Hide")
+        };
+        private static readonly int[] StandardRegionModeValues =
+        {
+            (int)LoogaMenuRegionMode.Inherit,
+            (int)LoogaMenuRegionMode.Override,
+            (int)LoogaMenuRegionMode.Hide
+        };
+        private static readonly GUIContent[] AdditiveRegionModes =
+        {
+            new("Inherit"),
+            new("Add"),
+            new("Override"),
+            new("Hide")
+        };
+        private static readonly int[] AdditiveRegionModeValues =
+        {
+            (int)LoogaMenuRegionMode.Inherit,
+            (int)LoogaMenuRegionMode.Add,
+            (int)LoogaMenuRegionMode.Override,
+            (int)LoogaMenuRegionMode.Hide
+        };
         private static readonly Dictionary<int, ContentEditorState> ContentStates = new();
         private static readonly Dictionary<long, bool> RegionFoldouts = new();
 
@@ -24,12 +49,12 @@ namespace LoogaSoft.Menu.Editor
         {
             LoogaMenuStructureProfile structure = LoogaMenuStructureEditorUtility.FindStructure();
             EditorGUILayout.Space(6f);
-            EditorGUILayout.LabelField("Regions", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Shared Slots", EditorStyles.boldLabel);
 
             if (structure == null)
             {
                 EditorGUILayout.HelpBox(
-                    "Assign or create a Menu Structure Profile before authoring regions.",
+                    "Assign or create a Menu Project before authoring shared UI.",
                     MessageType.Info);
                 return;
             }
@@ -47,7 +72,7 @@ namespace LoogaSoft.Menu.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 EditorGUILayout.ObjectField(
-                    new GUIContent("Structure", "Defines the regions available to this menu."),
+                    new GUIContent("Menu Project", "Defines the shared UI slots available to this menu."),
                     structure,
                     typeof(LoogaMenuStructureProfile),
                     false);
@@ -65,19 +90,19 @@ namespace LoogaSoft.Menu.Editor
                 ? overrides.GetArrayElementAtIndex(index)
                 : null;
             int mode = regionOverride != null
-                ? regionOverride.FindPropertyRelative("_mode").enumValueIndex
+                ? regionOverride.FindPropertyRelative("_mode").intValue
                 : (int)LoogaMenuRegionMode.Inherit;
 
             LoogaMenuRegionContent displayedContent = ResolveDisplayedContent(regionOverride, region, mode);
             long foldoutKey = GetFoldoutKey(overrides, region);
             bool expanded = GetRegionExpanded(foldoutKey);
-            bool isOverride = (LoogaMenuRegionMode)mode == LoogaMenuRegionMode.Override;
-            if (!isOverride)
+            bool isAuthored = IsAuthoredMode((LoogaMenuRegionMode)mode);
+            if (!isAuthored)
                 expanded = false;
 
             int nextMode = mode;
             using (LoogaEditorFoldouts.BeginLargeFoldoutLayout(
-                isOverride && expanded,
+                isAuthored && expanded,
                 out Rect headerRect,
                 out _))
             {
@@ -86,19 +111,20 @@ namespace LoogaSoft.Menu.Editor
                     region.DisplayName,
                     BuildContentSummary(displayedContent, (LoogaMenuRegionMode)mode),
                     mode,
-                    isOverride,
+                    isAuthored,
+                    region.DefaultContent != null && region.DefaultContent.SupportsAdd,
                     ref expanded);
 
                 if (nextMode != mode)
                 {
                     regionOverride ??= AddOverride(overrides, region);
-                    regionOverride.FindPropertyRelative("_mode").enumValueIndex = nextMode;
-                    isOverride = (LoogaMenuRegionMode)nextMode == LoogaMenuRegionMode.Override;
-                    expanded = isOverride;
+                    regionOverride.FindPropertyRelative("_mode").intValue = nextMode;
+                    isAuthored = IsAuthoredMode((LoogaMenuRegionMode)nextMode);
+                    expanded = isAuthored;
                 }
 
                 SetRegionExpanded(foldoutKey, expanded);
-                if (!isOverride || !expanded)
+                if (!isAuthored || !expanded)
                     return;
 
                 regionOverride ??= AddOverride(overrides, region);
@@ -123,6 +149,7 @@ namespace LoogaSoft.Menu.Editor
             string summary,
             int mode,
             bool canExpand,
+            bool supportsAdd,
             ref bool expanded)
         {
             Event current = Event.current;
@@ -178,7 +205,11 @@ namespace LoogaSoft.Menu.Editor
             if (canExpand)
                 LoogaEditorStyle.DrawFoldoutTriangle(arrowRect, expanded);
 
-            int nextMode = EditorGUI.Popup(modeRect, mode, RegionModes);
+            int nextMode = EditorGUI.IntPopup(
+                modeRect,
+                mode,
+                supportsAdd ? AdditiveRegionModes : StandardRegionModes,
+                supportsAdd ? AdditiveRegionModeValues : StandardRegionModeValues);
             Rect toggleRect = new(
                 headerRect.x,
                 headerRect.y,
@@ -475,16 +506,22 @@ namespace LoogaSoft.Menu.Editor
                 as LoogaMenuRegionContent;
         }
 
+        private static bool IsAuthoredMode(LoogaMenuRegionMode mode)
+        {
+            return mode == LoogaMenuRegionMode.Override || mode == LoogaMenuRegionMode.Add;
+        }
+
         private static string BuildContentSummary(
             LoogaMenuRegionContent content,
             LoogaMenuRegionMode mode)
         {
             if (mode == LoogaMenuRegionMode.Hide)
                 return "Not shown";
+            string prefix = mode == LoogaMenuRegionMode.Add ? "+" : string.Empty;
             if (content is LoogaMenuPanelRegionContent panelContent)
-                return FormatCount(panelContent.Panels?.Count ?? 0, "panel");
+                return prefix + FormatCount(panelContent.Panels?.Count ?? 0, "panel");
             if (content is LoogaMenuNavigationRegionContent navigationContent)
-                return FormatCount(navigationContent.Entries?.Count ?? 0, "entry");
+                return prefix + FormatCount(navigationContent.Entries?.Count ?? 0, "entry");
             if (content is LoogaMenuActionRegionContent actionContent)
             {
                 if (actionContent.Panel != null && actionContent.ShowBackAction)
@@ -560,7 +597,7 @@ namespace LoogaSoft.Menu.Editor
             overrides.InsertArrayElementAtIndex(index);
             SerializedProperty regionOverride = overrides.GetArrayElementAtIndex(index);
             regionOverride.FindPropertyRelative("_region").objectReferenceValue = region;
-            regionOverride.FindPropertyRelative("_mode").enumValueIndex =
+            regionOverride.FindPropertyRelative("_mode").intValue =
                 (int)LoogaMenuRegionMode.Inherit;
             regionOverride.FindPropertyRelative("_content").objectReferenceValue = null;
             return regionOverride;

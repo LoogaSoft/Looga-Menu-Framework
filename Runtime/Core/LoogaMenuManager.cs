@@ -20,10 +20,14 @@ namespace LoogaSoft.Menu
         private readonly Dictionary<LoogaMenuRegionDefinition, NavigationRuntime> _navigation = new();
         private readonly Dictionary<LoogaMenuRegionDefinition, ActionBarRuntime> _actionBars = new();
         private readonly List<LoogaMenuRegionContent> _resolvedRegionContents = new();
+        private readonly Dictionary<LoogaMenuRegionDefinition, LoogaMenuRegionContent>
+            _resolvedRegionContentByRegion = new();
+        private readonly List<LoogaMenuRegionContent> _runtimeRegionContents = new();
         private readonly List<LoogaMenuPanelDefinition> _regionPanels = new();
 
         private ILoogaMenuTransitionHandler _transitionHandler;
         private ILoogaMenuAudioHandler _audioHandler;
+        private LoogaMenuContextDefinition _activeContext;
 
         public LoogaMenuManager(
             ILoogaBlackboardReader blackboardReader,
@@ -54,6 +58,7 @@ namespace LoogaSoft.Menu
         public IReadOnlyList<LoogaMenuScreenDefinition> OpenScreens => _openScreens;
         public IReadOnlyList<LoogaMenuPanel> VisiblePanels => _visiblePanels;
         public LoogaMenuInputPolicy ActiveInputPolicy => TopScreen != null ? TopScreen.InputPolicy : null;
+        public LoogaMenuContextDefinition ActiveContext => _activeContext;
 
         internal ILoogaBlackboardReader BlackboardReader => _blackboardReader;
         internal LoogaMenuScreenDefinition TopScreen => _openScreens.Count > 0 ? _openScreens[^1] : null;
@@ -96,11 +101,42 @@ namespace LoogaSoft.Menu
         /// <summary>Resolves the active content for a configured region.</summary>
         public LoogaMenuRegionContent ResolveRegionContent(LoogaMenuRegionDefinition region)
         {
-            LoogaMenuScreenDefinition screen = TopScreen;
-            if (screen == null || region == null || (_structure != null && !_structure.Contains(region)))
+            if (region == null || _structure == null || !_structure.Contains(region))
                 return null;
 
-            return screen.ResolveRegion(GetActiveLayout(screen), region);
+            return _resolvedRegionContentByRegion.TryGetValue(
+                region,
+                out LoogaMenuRegionContent content)
+                ? content
+                : null;
+        }
+
+        /// <summary>Changes the persistent presentation context without opening a screen.</summary>
+        public void SetContext(LoogaMenuContextDefinition context)
+        {
+            if (_activeContext == context)
+                return;
+
+            _activeContext = context;
+            RebuildPresentation();
+            NotifyStateChanged();
+        }
+
+        /// <summary>Rebuilds region and panel presentation after scene registration changes.</summary>
+        public void RefreshPresentation()
+        {
+            RebuildPresentation();
+        }
+
+        /// <summary>Releases transient content and subscriptions owned by this manager.</summary>
+        public void Dispose()
+        {
+            foreach (ActionBarRuntime actionBar in _actionBars.Values)
+                actionBar.ReleasePanelSubscriptions();
+
+            ClearRuntimeRegionContents();
+            _resolvedRegionContents.Clear();
+            _resolvedRegionContentByRegion.Clear();
         }
 
         public void SetTransitionHandler(ILoogaMenuTransitionHandler transitionHandler)
@@ -335,16 +371,196 @@ namespace LoogaSoft.Menu
 
         private void CollectResolvedRegionContents()
         {
+            ClearRuntimeRegionContents();
             _resolvedRegionContents.Clear();
-            if (_structure == null || TopScreen == null)
+            _resolvedRegionContentByRegion.Clear();
+            if (_structure == null)
                 return;
 
             foreach (LoogaMenuRegionDefinition region in _structure.Regions)
             {
-                LoogaMenuRegionContent content = ResolveRegionContent(region);
-                if (content != null)
-                    _resolvedRegionContents.Add(content);
+                if (region == null)
+                    continue;
+
+                LoogaMenuRegionContent content = region.DefaultContent;
+                ApplyRegionOverrides(_activeContext?.RegionOverrides, region, ref content);
+
+                LoogaMenuScreenDefinition screen = TopScreen;
+                if (screen != null)
+                {
+                    ApplyRegionOverrides(screen.RegionOverrides, region, ref content);
+                    ApplyRegionOverrides(
+                        GetActiveLayout(screen)?.RegionOverrides,
+                        region,
+                        ref content);
+                    AddGeneratedNavigation(screen, region, ref content);
+                }
+
+                if (content == null)
+                    continue;
+
+                _resolvedRegionContents.Add(content);
+                _resolvedRegionContentByRegion[region] = content;
             }
+        }
+
+        private void AddGeneratedNavigation(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuRegionDefinition region,
+            ref LoogaMenuRegionContent content)
+        {
+            if (screen == null
+                || screen.NavigationSlot != region
+                || !typeof(LoogaMenuNavigationRegionContent).IsAssignableFrom(region.ContentType))
+            {
+                return;
+            }
+
+            if (IsRegionHidden(screen.RegionOverrides, region)
+                || IsRegionHidden(GetActiveLayout(screen)?.RegionOverrides, region))
+            {
+                return;
+            }
+
+            List<LoogaMenuNavigationEntry> entries = new();
+            if (screen.IncludeLayoutsInNavigation)
+            {
+                foreach (LoogaMenuScreenLayout layout in screen.Layouts
+                    ?? Array.Empty<LoogaMenuScreenLayout>())
+                {
+                    if (layout == null || !layout.IncludeInNavigation)
+                        continue;
+
+                    entries.Add(LoogaMenuNavigationEntry.Create(
+                        layout.DisplayName,
+                        LoogaMenuDestination.Create(
+                            screen,
+                            layout,
+                            LoogaMenuOpenMode.Replace),
+                        layout.NavigationRequirements));
+                }
+            }
+
+            foreach (LoogaMenuNavigationEntry entry in screen.NavigationLinks
+                ?? Array.Empty<LoogaMenuNavigationEntry>())
+            {
+                if (entry != null)
+                    entries.Add(entry);
+            }
+
+            if (entries.Count == 0)
+                return;
+
+            int selectedIndex = 0;
+            LoogaMenuScreenLayout activeLayout = GetActiveLayout(screen);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i]?.Destination?.Matches(screen, activeLayout) == true)
+                {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+
+            LoogaMenuNavigationRegionContent generated =
+                LoogaMenuNavigationRegionContent.CreateRuntime(entries, selectedIndex);
+            generated.name = $"{screen.name} Navigation";
+            _runtimeRegionContents.Add(generated);
+            AddRegionContent(region, generated, ref content);
+        }
+
+        private static bool IsRegionHidden(
+            LoogaMenuRegionOverride[] overrides,
+            LoogaMenuRegionDefinition region)
+        {
+            foreach (LoogaMenuRegionOverride regionOverride in overrides
+                ?? Array.Empty<LoogaMenuRegionOverride>())
+            {
+                if (regionOverride != null && regionOverride.Region == region)
+                    return regionOverride.Mode == LoogaMenuRegionMode.Hide;
+            }
+
+            return false;
+        }
+
+        private void ApplyRegionOverrides(
+            LoogaMenuRegionOverride[] overrides,
+            LoogaMenuRegionDefinition region,
+            ref LoogaMenuRegionContent content)
+        {
+            foreach (LoogaMenuRegionOverride regionOverride in overrides
+                ?? Array.Empty<LoogaMenuRegionOverride>())
+            {
+                if (regionOverride == null || regionOverride.Region != region)
+                    continue;
+
+                switch (regionOverride.Mode)
+                {
+                    case LoogaMenuRegionMode.Override:
+                        content = regionOverride.Content;
+                        break;
+                    case LoogaMenuRegionMode.Hide:
+                        content = null;
+                        break;
+                    case LoogaMenuRegionMode.Add:
+                        AddRegionContent(region, regionOverride.Content, ref content);
+                        break;
+                }
+
+                return;
+            }
+        }
+
+        private void AddRegionContent(
+            LoogaMenuRegionDefinition region,
+            LoogaMenuRegionContent addition,
+            ref LoogaMenuRegionContent content)
+        {
+            if (addition == null)
+                return;
+
+            if (content == null)
+            {
+                content = addition;
+                return;
+            }
+
+            if (!content.SupportsAdd || content.GetType() != addition.GetType())
+            {
+                Debug.LogWarning(
+                    $"Menu region '{region.DisplayName}' cannot add content of type " +
+                    $"'{addition.GetType().Name}'. Use Override for this region.");
+                return;
+            }
+
+            if (!_runtimeRegionContents.Contains(content))
+            {
+                content = content.CreateRuntimeCopy();
+                _runtimeRegionContents.Add(content);
+            }
+
+            if (!content.AddFrom(addition))
+            {
+                Debug.LogWarning(
+                    $"Menu region '{region.DisplayName}' rejected additive content " +
+                    $"'{addition.name}'.");
+            }
+        }
+
+        private void ClearRuntimeRegionContents()
+        {
+            foreach (LoogaMenuRegionContent content in _runtimeRegionContents)
+            {
+                if (content == null)
+                    continue;
+
+                if (Application.isPlaying)
+                    UnityEngine.Object.Destroy(content);
+                else
+                    UnityEngine.Object.DestroyImmediate(content);
+            }
+
+            _runtimeRegionContents.Clear();
         }
 
         private void AddPanel(LoogaMenuPanelDefinition definition, LoogaMenuScreenDefinition owner,

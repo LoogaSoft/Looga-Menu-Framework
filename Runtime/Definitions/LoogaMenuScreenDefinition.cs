@@ -1,4 +1,5 @@
 using System;
+using LoogaSoft.Inspector.Runtime;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -22,6 +23,15 @@ namespace LoogaSoft.Menu
         [Header("Regions")]
         [SerializeField] private LoogaMenuRegionOverride[] _regionOverrides = Array.Empty<LoogaMenuRegionOverride>();
 
+        [Header("Navigation")]
+        [Tooltip("The shared navigation slot that receives this screen's generated links.")]
+        [SerializeField] private LoogaMenuRegionDefinition _navigationSlot;
+        [Tooltip("Create one navigation link for each layout that is included in navigation.")]
+        [SerializeField] private bool _includeLayoutsInNavigation;
+        [Tooltip("Adds links to other screens without authoring a navigation content asset.")]
+        [SerializeField, LoogaList] private LoogaMenuNavigationEntry[] _navigationLinks =
+            Array.Empty<LoogaMenuNavigationEntry>();
+
         [Header("Behavior")]
         [InspectorName("Open Requirements")]
         [SerializeField] private LoogaMenuRuleSet _rules;
@@ -34,6 +44,9 @@ namespace LoogaSoft.Menu
         public LoogaMenuScreenLayout[] Layouts => _layouts;
         public LoogaMenuScreenLayout DefaultLayout => ResolveLayout(null);
         public LoogaMenuRegionOverride[] RegionOverrides => _regionOverrides;
+        public LoogaMenuRegionDefinition NavigationSlot => _navigationSlot;
+        public bool IncludeLayoutsInNavigation => _includeLayoutsInNavigation;
+        public LoogaMenuNavigationEntry[] NavigationLinks => _navigationLinks;
         public LoogaMenuRuleSet Rules => _rules;
         public LoogaMenuInputPolicy InputPolicy => _inputPolicy;
         public LoogaMenuOpenMode DefaultOpenMode => _defaultOpenMode;
@@ -93,6 +106,7 @@ namespace LoogaSoft.Menu
         {
             _layouts ??= Array.Empty<LoogaMenuScreenLayout>();
             _regionOverrides ??= Array.Empty<LoogaMenuRegionOverride>();
+            _navigationLinks ??= Array.Empty<LoogaMenuNavigationEntry>();
             if (_defaultLayout != null && !ContainsLayout(_defaultLayout))
                 _defaultLayout = null;
 

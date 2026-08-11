@@ -13,7 +13,9 @@ namespace LoogaSoft.Menu
         [SerializeField] private LoogaMenuPanel[] _scenePanels = System.Array.Empty<LoogaMenuPanel>();
 
         [Header("Structure")]
+        [InspectorName("Menu Project")]
         [SerializeField] private LoogaMenuStructureProfile _structure;
+        [SerializeField] private LoogaMenuContextDefinition _defaultContext;
 
         [Header("Cursor")]
         [SerializeField] private bool _controlCursor = true;
@@ -40,19 +42,27 @@ namespace LoogaSoft.Menu
         /// <summary>Gets the project-authored menu region structure.</summary>
         public LoogaMenuStructureProfile Structure => _structure;
 
+        /// <summary>Gets the context applied when this root initializes.</summary>
+        public LoogaMenuContextDefinition DefaultContext => _defaultContext;
+
+        /// <summary>Gets the persistent context currently applied to shared regions.</summary>
+        public LoogaMenuContextDefinition ActiveContext => _menuManager?.ActiveContext;
+
         /// <summary>Applies project-level menu behavior at runtime.</summary>
         public void ApplyRuntimeDefaults(
             bool registerChildrenOnAwake,
             LoogaMenuStructureProfile structure,
             bool controlCursor,
             CursorLockMode closedLockMode,
-            bool closedCursorVisible)
+            bool closedCursorVisible,
+            LoogaMenuContextDefinition defaultContext = null)
         {
             _registerChildrenOnAwake = registerChildrenOnAwake;
             _structure = structure;
             _controlCursor = controlCursor;
             _closedLockMode = closedLockMode;
             _closedCursorVisible = closedCursorVisible;
+            _defaultContext = defaultContext;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -74,12 +84,19 @@ namespace LoogaSoft.Menu
             RegisterStateProviders();
             ResolveHandlers();
             RegisterPanels();
+            if (_defaultContext != null)
+                _menuManager.SetContext(_defaultContext);
+            else
+                _menuManager.RefreshPresentation();
         }
 
         private void OnDestroy()
         {
             if (_menuManager != null)
+            {
                 _menuManager.StateChanged -= OnMenuStateChanged;
+                _menuManager.Dispose();
+            }
 
             UnregisterStateProviders();
             ReleaseOwnedBlackboard();
@@ -129,6 +146,12 @@ namespace LoogaSoft.Menu
         public void CloseAll()
         {
             _menuManager?.CloseAll();
+        }
+
+        /// <summary>Applies persistent shared presentation for the active gameplay context.</summary>
+        public void SetContext(LoogaMenuContextDefinition context)
+        {
+            _menuManager?.SetContext(context);
         }
 
         /// <summary>Registers a scene panel with this root.</summary>

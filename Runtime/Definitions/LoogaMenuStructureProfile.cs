@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu
 {
-    /// <summary>Lists the named regions available to every menu screen and layout.</summary>
-    [CreateAssetMenu(fileName = "New Menu Structure", menuName = "LoogaSoft/Menu Framework/Structure Profile")]
+    /// <summary>Lists the shared UI slots available to every menu screen and layout.</summary>
+    [CreateAssetMenu(fileName = "New Menu Project", menuName = "LoogaSoft/Menu Framework/Menu Project")]
     public sealed class LoogaMenuStructureProfile : ScriptableObject
     {
         [SerializeField] private LoogaMenuRegionDefinition[] _regions = Array.Empty<LoogaMenuRegionDefinition>();

@@ -1,128 +1,86 @@
 # Looga Menu Framework
 
-Looga Menu Framework is an asset-driven UGUI framework for game menus. It uses a small set of explicit concepts so designers can build simple and complex menu flows in the same way.
+Looga Menu Framework is a designer-first UGUI framework. Its normal workflow uses four concepts:
 
-The package is project-agnostic. A game supplies its UI scene, panel objects, input bridge, blackboard state, and optional presentation handlers.
+- A **screen** is a destination that Back can return from.
+- A **layout** is one arrangement of the same screen. Switching layouts does not change menu history.
+- A **panel** is one reusable UI section.
+- A **shared slot** is authored UI reused across screens, such as a header, navigation bar, action bar, or background.
 
-## Authoring Model
+Start from **LoogaSoft > Menu Framework > Menu Project**. This window creates and finds the assets used by the project.
 
-Use these rules when deciding what to create:
+## Choosing The Right Concept
 
-- A **screen** is a destination in menu history. Opening another screen adds or replaces a history entry.
-- A **layout** is one composition of the same screen. Changing a layout does not add a history entry.
-- A **panel** is one reusable UI region that a layout shows.
-- A **region** is one shared presentation area, such as navigation, actions, a header, or a background.
-- A **destination** selects a screen, an optional layout, and an open mode.
+Create a new screen when Back must return to the previous menu. Create a layout when the destination stays the same but its visible panels change. Create a panel when a UI section needs independent visibility, reuse, or transitions.
 
 Examples:
 
-- Pause and Settings are separate screens because Back must return from Settings to Pause.
-- Faction Selection, Shop Buy, Shop Sell, Missions, and Jobs are layouts of one Faction Services screen.
-- Loadout and Backpack can remain one panel when they always appear and close together.
-- A confirmation dialog is normally an overlay screen because it has its own focus and Back behavior.
-
-Do not split a stable UI region into several panels only because it contains several child objects. Make a separate panel when the region needs independent reuse, visibility, transition, or contextual actions.
+- Pause and Settings are separate screens.
+- Shop Buy, Shop Sell, Missions, and Jobs can be layouts of one Faction Services screen.
+- Loadout and Backpack can remain one panel when they always appear together.
+- A confirmation dialog is usually an overlay screen.
 
 ## Basic Setup
 
-1. Create one `LoogaMenuStructureProfile` for the project.
-2. Add typed region definitions and default content to the structure profile.
-3. Add `LoogaMenuRoot` to the main menu canvas and assign the structure profile.
-4. Add `LoogaMenuRegionHost` to each shared presenter and select its region.
-5. Create one `LoogaMenuPanelDefinition` for each reusable panel.
-6. Add `LoogaMenuPanel` to each authored panel object and assign its definition.
-7. Create one `LoogaMenuScreenDefinition` for each menu-history destination.
-8. Create owned `LoogaMenuScreenLayout` sub-assets for the screen's supported compositions.
-9. Add the required panel definitions to each layout.
-10. Override or hide configured regions only where the screen or layout differs from the project default.
-11. Open the screen through `LoogaMenuDestination`, `LoogaMenuOpenButton`, input routing, or code.
+1. Open **LoogaSoft > Menu Framework > Menu Project**.
+2. Create one Menu Project asset.
+3. Add shared slots for the header, navigation, actions, and background used by the project.
+4. Add `LoogaMenuRoot` to the main menu canvas and assign the Menu Project.
+5. Add one `LoogaMenuRegionHost` to each shared presenter and assign its Shared Slot.
+6. Create panel definitions and add `LoogaMenuPanel` to their scene objects.
+7. Create a screen. The Menu Project window creates its default layout automatically.
+8. Add the panels shown by each layout.
+9. Use `LoogaMenuButton` for Open Screen, Switch Layout, Back, and Close All operations.
 
-Panel objects may start disabled. The menu root registers them and controls their active state.
+Panel objects can start disabled. The menu root registers and controls them.
 
-## Screens
+## Navigation
 
-`LoogaMenuScreenDefinition` owns the behavior shared by one menu destination:
+A screen can generate navigation without separate content assets:
 
-- Layouts and the default layout.
-- Region overrides.
-- Open requirements.
-- Input policy.
-- Default open mode.
-- Missing-panel behavior.
+1. Assign its Navigation Slot.
+2. Enable **Include Layouts In Navigation**.
+3. Disable **Include In Navigation** on any layout that should not appear.
+4. Add optional links when navigation must open another screen.
 
-Create a new screen when the menu needs an independent history entry. Back returns to the previous screen.
+Generated layout links use layout asset names. Selecting one switches the active layout without adding a menu-history entry.
 
-## Layouts
+## Shared UI
 
-`LoogaMenuScreenLayout` is an owned sub-asset of a screen. It defines:
+Shared slots keep persistent presenters separate from screen panels. A screen or layout normally inherits each slot. It can also add content, replace content, or hide the slot.
 
-- The panels shown together.
-- Optional region overrides.
+The runtime resolves shared UI in this order:
 
-Use layouts for states of the same destination. For example, a Faction Services screen can own Faction Selection, Shop Buy, Shop Sell, Missions, and Jobs layouts. Changing among these layouts keeps one screen-history entry.
+1. Menu Project default.
+2. Active context.
+3. Open screen.
+4. Active layout.
 
-Every screen has one default layout. A destination that does not select a layout uses that default.
+Contexts are optional advanced assets for persistent application states such as Main Menu, Station, or Raid. They can change shared UI without opening a screen.
 
-## Panels
+## Buttons And Input
 
-A panel is one reusable UGUI region, such as:
+Use `LoogaMenuButton` for scene buttons. It supports:
 
-- Stockpile.
-- Loadout and Backpack.
-- Faction selection.
-- Shop buy list.
-- Settings.
-- Shared background.
-- Compact profile and currency header regions.
-- Shared action bar.
+- Open Screen.
+- Switch Layout.
+- Back.
+- Close All.
 
-Each authored panel object needs a `LoogaMenuPanel` and a matching `LoogaMenuPanelDefinition`.
+`LoogaMenuInputRouter` provides the same screen-opening and closing behavior for Input System actions.
 
-Panels can implement `ILoogaMenuActionProvider` to contribute contextual action-bar commands. Call `LoogaMenuPanel.NotifyActionsChanged()` when those commands change.
+## Advanced Features
 
-## Typed Destinations
+The framework keeps typed rules, input policies, contexts, and custom shared-slot content available for larger projects. These features are optional. A basic menu does not need them.
 
-`LoogaMenuDestination` replaces string IDs and indirect content-entry lists. It contains:
-
-- A required screen.
-- An optional layout owned by that screen.
-- An open mode.
-
-Use the same destination type in buttons, input bindings, and navigation entries. The inspector limits layout selection to layouts owned by the selected screen.
-
-## Shared Regions
-
-`LoogaMenuStructureProfile` defines the shared presentation areas available to a project. Each `LoogaMenuRegionDefinition` has a typed `LoogaMenuRegionContent` default. Screens and layouts can inherit, override, or hide that content.
-
-The framework includes content types for navigation entries, contextual actions, and shared panels. Projects can add more content and presenter types without changing screen or layout definitions.
-
-Add `LoogaMenuRegionHost` to each authored presenter and assign the matching region. For example, one project can define Primary Navigation, Secondary Navigation, Action Bar, Header, and Background regions. Another project can use a different set without changing the framework.
-
-Visible panels can implement `ILoogaMenuActionProvider` to contribute contextual commands to an action region. Call `LoogaMenuPanel.NotifyActionsChanged()` when those commands change.
+Visible panels can implement `ILoogaMenuActionProvider` to contribute contextual actions. Project-specific presenters can consume custom shared-slot content without changing screen or layout definitions.
 
 ## Open Modes
 
-- `Replace` closes the current destination and opens the new destination.
-- `AddAlongside` keeps current content visible and adds the destination.
-- `Overlay` opens the destination above the current focus and Back target.
-
-Use `Overlay` for dialogs and temporary submenus that must close before the parent screen.
-
-## Requirements And Input
-
-`LoogaMenuRuleSet` checks typed blackboard conditions before a destination opens. `LoogaMenuInputPolicy` controls cursor behavior and blocked gameplay input categories while the screen is active.
-
-Keep game-specific rules and input bridges outside the package. The package exposes typed assets and runtime contracts for those integrations.
+- `Replace` closes the current destination before opening the new one.
+- `AddAlongside` keeps current content visible.
+- `Overlay` opens above the current screen and becomes the next Back target.
 
 ## Previewing
 
-Open the Menu Preview window from the LoogaSoft menu. Each screen appears once. Screens with several layouts can expand to preview each layout. Right-click a preview button to select and ping its screen definition.
-
-## Design Guidance
-
-- Prefer one obvious authoring path.
-- Use screens for history, layouts for composition, and panels for reusable regions.
-- Use typed destinations instead of string identifiers.
-- Keep navigation, menu headers, and action bars shared; screens contribute data instead of duplicating their UI.
-- Keep layout changes out of the Back stack.
-- Keep game-specific view logic in the game project.
+Open **LoogaSoft > Menu Framework > Menu Preview**. Expand a screen to preview its layouts. Right-click a row to select its definition. Middle-click a row to select matching scene objects.

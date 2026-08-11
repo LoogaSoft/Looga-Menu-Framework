@@ -23,5 +23,18 @@ namespace LoogaSoft.Menu
         public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? "Navigation Entry" : _displayName;
         public LoogaMenuDestination Destination => _destination;
         public LoogaMenuRuleSet Requirements => _requirements;
+
+        internal static LoogaMenuNavigationEntry Create(
+            string displayName,
+            LoogaMenuDestination destination,
+            LoogaMenuRuleSet requirements = null)
+        {
+            return new LoogaMenuNavigationEntry
+            {
+                _displayName = displayName,
+                _destination = destination,
+                _requirements = requirements
+            };
+        }
     }
 }

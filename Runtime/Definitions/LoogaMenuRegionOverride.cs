@@ -7,7 +7,8 @@ namespace LoogaSoft.Menu
     {
         Inherit = 0,
         Override = 1,
-        Hide = 2
+        Hide = 2,
+        Add = 3
     }
 
     /// <summary>Changes one configured region for a screen or layout.</summary>

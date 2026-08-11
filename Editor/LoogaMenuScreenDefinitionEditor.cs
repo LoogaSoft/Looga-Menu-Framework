@@ -8,13 +8,15 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenDefinition))]
     public sealed class LoogaMenuScreenDefinitionEditor : LoogaEditor
     {
-        private static readonly string[] InspectorTabs = { "Settings", "Layouts", "Regions" };
+        private static readonly string[] InspectorTabs = { "Screen", "Layouts", "Shared UI" };
 
         private LoogaMenuScreenLayout _selectedLayout;
         private SerializedObject _selectedLayoutObject;
         private bool _selectedLayoutExpanded = true;
         private int _selectedLayoutTab;
         private int _selectedTab;
+        private bool _navigationExpanded;
+        private bool _behaviorExpanded;
 
         private void OnEnable()
         {
@@ -55,15 +57,38 @@ namespace LoogaSoft.Menu.Editor
         {
             LoogaGUILayout.PropertyField(serializedObject.FindProperty("_description"));
 
-            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
-            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
-            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
-            LoogaGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
+            EditorGUILayout.Space(6f);
+            _navigationExpanded = LoogaGUILayout.FoldoutLarge(
+                new GUIContent(
+                    "Navigation",
+                    "Generate navigation directly from this screen instead of creating shared-content assets."),
+                _navigationExpanded,
+                () =>
+                {
+                    LoogaGUILayout.PropertyField(serializedObject.FindProperty("_navigationSlot"));
+                    LoogaGUILayout.PropertyField(
+                        serializedObject.FindProperty("_includeLayoutsInNavigation"));
+                    LoogaGUILayout.PropertyField(
+                        serializedObject.FindProperty("_navigationLinks"),
+                        true);
+                });
+
+            _behaviorExpanded = LoogaGUILayout.FoldoutSmall(
+                "Advanced Behavior",
+                _behaviorExpanded,
+                () =>
+                {
+                    LoogaGUILayout.PropertyField(serializedObject.FindProperty("_rules"));
+                    LoogaGUILayout.PropertyField(serializedObject.FindProperty("_inputPolicy"));
+                    LoogaGUILayout.PropertyField(serializedObject.FindProperty("_defaultOpenMode"));
+                    LoogaGUILayout.PropertyField(serializedObject.FindProperty("_missingPanelBehavior"));
+                });
         }
 
         private void DrawRegions()
         {
-            LoogaMenuScreenAuthoringGUI.DrawRegions(serializedObject.FindProperty("_regionOverrides"));
+            LoogaMenuScreenAuthoringGUI.DrawRegions(
+                serializedObject.FindProperty("_regionOverrides"));
         }
 
         private void DrawLayouts(LoogaMenuScreenDefinition screen)
@@ -337,6 +362,25 @@ namespace LoogaSoft.Menu.Editor
             EditorGUILayout.LabelField("Validation", EditorStyles.boldLabel);
 
             bool hasIssue = false;
+            if ((screen.IncludeLayoutsInNavigation
+                    || (screen.NavigationLinks?.Length ?? 0) > 0)
+                && screen.NavigationSlot == null)
+            {
+                hasIssue = true;
+                EditorGUILayout.HelpBox(
+                    "Navigation is authored, but no shared navigation slot is assigned.",
+                    MessageType.Warning);
+            }
+            else if (screen.NavigationSlot != null
+                && !typeof(LoogaMenuNavigationRegionContent).IsAssignableFrom(
+                    screen.NavigationSlot.ContentType))
+            {
+                hasIssue = true;
+                EditorGUILayout.HelpBox(
+                    $"'{screen.NavigationSlot.name}' is not a navigation slot.",
+                    MessageType.Error);
+            }
+
             if (screen.Layouts == null || screen.Layouts.Length == 0)
             {
                 hasIssue = true;
@@ -371,12 +415,12 @@ namespace LoogaSoft.Menu.Editor
                 List<LoogaMenuPanelDefinition> regionPanels = new();
                 foreach (LoogaMenuRegionDefinition region in structure.Regions)
                 {
-                    LoogaMenuRegionContent content = screen.ResolveRegion(layout, region);
-                    if (content == null)
-                        continue;
-
-                    regionPanels.Clear();
-                    content.CollectPanels(regionPanels);
+                    LoogaMenuRegionPanelResolver.Collect(
+                        root,
+                        screen,
+                        layout,
+                        region,
+                        regionPanels);
                     foreach (LoogaMenuPanelDefinition panel in regionPanels)
                     {
                         ValidatePanel(

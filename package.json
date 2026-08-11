@@ -1,8 +1,8 @@
 {
   "displayName": "Looga Menu Framework",
   "name": "com.loogasoft.loogamenuframework",
-  "description": "Asset-driven UGUI menu framework for typed destinations, composed screen layouts, reusable panels, and project-defined shared regions.",
-  "version": "1.1.0",
+  "description": "Designer-first UGUI menu framework built around screens, layouts, panels, and shared UI slots.",
+  "version": "1.2.0",
   "author": {
     "name": "LoogaSoft"
   },

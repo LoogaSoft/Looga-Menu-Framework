@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu
 {
-    /// <summary>Defines one named presentation area in a menu structure.</summary>
+    /// <summary>Defines one named shared UI slot.</summary>
     public sealed class LoogaMenuRegionDefinition : ScriptableObject
     {
         [SerializeField] private LoogaMenuRegionContent _defaultContent;

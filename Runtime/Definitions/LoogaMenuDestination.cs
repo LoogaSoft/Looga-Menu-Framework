@@ -16,6 +16,19 @@ namespace LoogaSoft.Menu
         public LoogaMenuOpenMode OpenMode => _openMode;
         public bool IsAssigned => _screen != null;
 
+        internal static LoogaMenuDestination Create(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            LoogaMenuOpenMode openMode)
+        {
+            return new LoogaMenuDestination
+            {
+                _screen = screen,
+                _layout = layout,
+                _openMode = openMode
+            };
+        }
+
         public bool Open(LoogaMenuRoot root, UnityEngine.Object requester = null, object payload = null)
         {
             return root != null && root.Open(this, requester, payload);

@@ -8,7 +8,7 @@ namespace LoogaSoft.Menu.Editor
     [CustomEditor(typeof(LoogaMenuScreenLayout))]
     public sealed class LoogaMenuScreenLayoutEditor : LoogaEditor
     {
-        private static readonly string[] InspectorTabs = { "Composition", "Regions" };
+        private static readonly string[] InspectorTabs = { "Layout", "Shared UI" };
 
         private int _selectedTab;
 
@@ -49,11 +49,15 @@ namespace LoogaSoft.Menu.Editor
             {
                 drawProperty("_description");
                 drawProperty("_panels");
+                drawProperty("_includeInNavigation");
+                drawProperty("_navigationRequirements");
             }
             else
             {
                 LoogaGUILayout.PropertyField(layoutObject.FindProperty("_description"));
                 LoogaGUILayout.PropertyField(layoutObject.FindProperty("_panels"), true);
+                LoogaGUILayout.PropertyField(layoutObject.FindProperty("_includeInNavigation"));
+                LoogaGUILayout.PropertyField(layoutObject.FindProperty("_navigationRequirements"));
             }
 
             return selectedTab;

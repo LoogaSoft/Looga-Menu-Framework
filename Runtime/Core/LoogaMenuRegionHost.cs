@@ -8,6 +8,7 @@ namespace LoogaSoft.Menu
     [AddComponentMenu("LoogaSoft/Menu/Menu Region Host")]
     public sealed class LoogaMenuRegionHost : MonoBehaviour
     {
+        [InspectorName("Shared Slot")]
         [SerializeField] private LoogaMenuRegionDefinition _region;
 
         private LoogaMenuManager _manager;
