@@ -8,16 +8,22 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
-        private const float SceneIconSizePixels = 18f;
-        private const float SceneButtonInsetPixels = 5f;
+        private const float RevealIconSizePixels = 18f;
+        private const float RevealButtonInsetPixels = 5f;
+        private const float RevealButtonGapPixels = 2f;
         private const float ConfigurationTextInsetPixels = 8f;
         private const float ExpandedScreenBottomPaddingPixels = 7f;
         private const float HeaderArrowTextGapPixels = 4f;
+        private const string HierarchyIconPath =
+            "Packages/com.loogasoft.loogamenuframework/Editor/Icons/Remix/node-tree.png";
+        private const string DefinitionIconPath =
+            "Packages/com.loogasoft.loogamenuframework/Editor/Icons/Remix/file-settings-fill.png";
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
-        private static GUIContent _selectSceneContent;
-        private static GUIContent _selectSceneTooltipContent;
+        private static Texture _hierarchyIcon;
+        private static Texture _definitionIcon;
+        private static GUIContent _buttonTooltipContent;
         private static GUIStyle _configurationButtonStyle;
         private static GUIStyle _sceneButtonStyle;
         private Vector2 _scrollPosition;
@@ -165,8 +171,12 @@ namespace LoogaSoft.Menu.Editor
             headerRect = LoogaEditorStyle.PixelSnap(headerRect);
             clickRect = LoogaEditorStyle.PixelSnap(clickRect);
 
-            float outerInset = LoogaEditorStyle.Pixels(SceneButtonInsetPixels);
-            Rect sceneButtonRect = GetSceneButtonRect(headerRect, outerInset);
+            float outerInset = LoogaEditorStyle.Pixels(RevealButtonInsetPixels);
+            GetRevealButtonRects(
+                headerRect,
+                outerInset,
+                out Rect hierarchyButtonRect,
+                out Rect definitionButtonRect);
 
             Rect contentRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(headerRect, false);
             Rect arrowRect = LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect);
@@ -176,10 +186,10 @@ namespace LoogaSoft.Menu.Editor
                 contentRect.xMin = arrowRect.xMax + LoogaEditorStyle.Pixels(HeaderArrowTextGapPixels);
             }
 
-            contentRect.xMax = sceneButtonRect.xMin - outerInset;
+            contentRect.xMax = hierarchyButtonRect.xMin - outerInset;
 
             Rect interactiveRect = clickRect;
-            interactiveRect.xMax = sceneButtonRect.xMin - outerInset;
+            interactiveRect.xMax = hierarchyButtonRect.xMin - outerInset;
             Event current = Event.current;
             if (clickRect.Contains(current.mousePosition))
                 LoogaEditorFoldouts.DrawHoverRect(clickRect);
@@ -188,7 +198,20 @@ namespace LoogaSoft.Menu.Editor
             if (showFoldout)
                 LoogaEditorStyle.DrawFoldoutTriangle(arrowRect, expanded);
 
-            DrawSceneSelectionButton(sceneButtonRect, canSelect, selectSceneObjects);
+            DrawRevealButton(
+                hierarchyButtonRect,
+                GetHierarchyIcon(),
+                canSelect,
+                canSelect
+                    ? "Select Scene Object"
+                    : "No corresponding panel objects are loaded in the open scene.",
+                selectSceneObjects);
+            DrawRevealButton(
+                definitionButtonRect,
+                GetDefinitionIcon(),
+                definition != null,
+                "Ping Definition Asset",
+                () => SelectDefinitionAsset(definition));
 
             if (HandleContextClick(interactiveRect, definition))
                 return false;
@@ -225,17 +248,23 @@ namespace LoogaSoft.Menu.Editor
             Action selectSceneObjects)
         {
             rowRect = LoogaEditorStyle.PixelSnap(rowRect);
-            float outerInset = LoogaEditorStyle.Pixels(SceneButtonInsetPixels);
-            Rect sceneButtonRect = GetSceneButtonRect(rowRect, outerInset);
+            float outerInset = LoogaEditorStyle.Pixels(RevealButtonInsetPixels);
+            GetRevealButtonRects(
+                rowRect,
+                outerInset,
+                out Rect hierarchyButtonRect,
+                out Rect definitionButtonRect);
 
             GUIContent content = new(
                 string.IsNullOrWhiteSpace(displayName) ? layout.name : displayName,
                 "Left-click to preview. Right-click to open and ping the layout definition.");
-            GUIStyle buttonStyle = GetConfigurationButtonStyle(sceneButtonRect.width + outerInset * 2f);
-            bool pointerOverSceneButton = sceneButtonRect.Contains(Event.current.mousePosition);
-            using (new EditorGUI.DisabledScope(!canPreview && !pointerOverSceneButton))
+            float reservedRightWidth = rowRect.xMax - hierarchyButtonRect.xMin + outerInset;
+            GUIStyle buttonStyle = GetConfigurationButtonStyle(reservedRightWidth);
+            bool pointerOverRevealButton = hierarchyButtonRect.Contains(Event.current.mousePosition)
+                                           || definitionButtonRect.Contains(Event.current.mousePosition);
+            using (new EditorGUI.DisabledScope(!canPreview && !pointerOverRevealButton))
             {
-                if (pointerOverSceneButton)
+                if (pointerOverRevealButton)
                 {
                     GUI.Box(rowRect, content, buttonStyle);
                 }
@@ -245,27 +274,42 @@ namespace LoogaSoft.Menu.Editor
                 }
             }
 
-            DrawSceneSelectionButton(sceneButtonRect, canSelect, selectSceneObjects);
+            DrawRevealButton(
+                hierarchyButtonRect,
+                GetHierarchyIcon(),
+                canSelect,
+                canSelect
+                    ? "Select Scene Object"
+                    : "No corresponding panel objects are loaded in the open scene.",
+                selectSceneObjects);
+            DrawRevealButton(
+                definitionButtonRect,
+                GetDefinitionIcon(),
+                layout != null,
+                "Ping Definition Asset",
+                () => SelectDefinitionAsset(layout));
             HandleContextClick(rowRect, layout);
         }
 
-        private static void DrawSceneSelectionButton(Rect rect, bool canSelect, Action selectSceneObjects)
+        private static void DrawRevealButton(
+            Rect rect,
+            Texture icon,
+            bool enabled,
+            string tooltip,
+            Action action)
         {
-            GUIContent content = GetSelectSceneContent();
-            GUIContent tooltipContent = GetSelectSceneTooltipContent();
-            tooltipContent.tooltip = canSelect
-                ? "Select the corresponding panel object(s) in the hierarchy."
-                : "No corresponding panel objects are loaded in the open scene.";
+            GUIContent tooltipContent = GetButtonTooltipContent();
+            tooltipContent.tooltip = tooltip;
 
             bool clicked;
-            using (new EditorGUI.DisabledScope(!canSelect))
+            using (new EditorGUI.DisabledScope(!enabled))
             {
-                clicked = GUI.Button(rect, tooltipContent, GetSceneButtonStyle());
+                clicked = GUI.Button(rect, tooltipContent, GetRevealButtonStyle());
 
-                if (Event.current.type == EventType.Repaint && content.image != null)
+                if (Event.current.type == EventType.Repaint && icon != null)
                 {
                     float iconSize = Mathf.Min(
-                        LoogaEditorStyle.Pixels(SceneIconSizePixels),
+                        LoogaEditorStyle.Pixels(RevealIconSizePixels),
                         Mathf.Min(rect.width, rect.height));
                     Rect iconRect = new(
                         rect.center.x - iconSize * 0.5f,
@@ -273,31 +317,37 @@ namespace LoogaSoft.Menu.Editor
                         iconSize,
                         iconSize);
                     iconRect = LoogaEditorStyle.PixelSnap(iconRect);
-                    GUI.DrawTexture(iconRect, content.image, ScaleMode.ScaleToFit, true);
+                    GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
                 }
             }
 
             if (clicked)
-                selectSceneObjects?.Invoke();
+                action?.Invoke();
         }
 
-        private static GUIContent GetSelectSceneContent()
+        private static Texture GetHierarchyIcon()
         {
-            if (_selectSceneContent != null)
-                return _selectSceneContent;
+            if (_hierarchyIcon != null)
+                return _hierarchyIcon;
 
-            string iconName = EditorGUIUtility.isProSkin
-                ? "d_scenevis_visible_hover"
-                : "scenevis_visible_hover";
-            Texture icon = EditorGUIUtility.IconContent(iconName).image;
-            icon ??= EditorGUIUtility.IconContent("ViewToolZoom").image;
-            _selectSceneContent = new GUIContent(icon);
-            return _selectSceneContent;
+            _hierarchyIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(HierarchyIconPath);
+            _hierarchyIcon ??= EditorGUIUtility.IconContent("UnityEditor.SceneHierarchyWindow").image;
+            return _hierarchyIcon;
         }
 
-        private static GUIContent GetSelectSceneTooltipContent()
+        private static Texture GetDefinitionIcon()
         {
-            return _selectSceneTooltipContent ??= new GUIContent();
+            if (_definitionIcon != null)
+                return _definitionIcon;
+
+            _definitionIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(DefinitionIconPath);
+            _definitionIcon ??= EditorGUIUtility.IconContent("ScriptableObject Icon").image;
+            return _definitionIcon;
+        }
+
+        private static GUIContent GetButtonTooltipContent()
+        {
+            return _buttonTooltipContent ??= new GUIContent();
         }
 
         private static GUIStyle GetConfigurationButtonStyle(float reservedRightWidth)
@@ -317,7 +367,7 @@ namespace LoogaSoft.Menu.Editor
             return _configurationButtonStyle;
         }
 
-        private static GUIStyle GetSceneButtonStyle()
+        private static GUIStyle GetRevealButtonStyle()
         {
             return _sceneButtonStyle ??= new GUIStyle(EditorStyles.miniButton)
             {
@@ -330,14 +380,31 @@ namespace LoogaSoft.Menu.Editor
             };
         }
 
-        private static Rect GetSceneButtonRect(Rect rowRect, float outerInset)
+        private static void GetRevealButtonRects(
+            Rect rowRect,
+            float outerInset,
+            out Rect hierarchyButtonRect,
+            out Rect definitionButtonRect)
         {
             float size = Mathf.Max(0f, rowRect.height - outerInset * 2f);
-            return LoogaEditorStyle.PixelSnap(new Rect(
+            float gap = LoogaEditorStyle.Pixels(RevealButtonGapPixels);
+            definitionButtonRect = LoogaEditorStyle.PixelSnap(new Rect(
                 rowRect.xMax - outerInset - size,
                 rowRect.center.y - size * 0.5f,
                 size,
                 size));
+            hierarchyButtonRect = definitionButtonRect;
+            hierarchyButtonRect.x = definitionButtonRect.xMin - gap - size;
+            hierarchyButtonRect = LoogaEditorStyle.PixelSnap(hierarchyButtonRect);
+        }
+
+        private static void SelectDefinitionAsset(UnityEngine.Object definition)
+        {
+            if (definition == null)
+                return;
+
+            Selection.activeObject = definition;
+            EditorGUIUtility.PingObject(definition);
         }
 
         private static bool HandleContextClick(Rect rect, UnityEngine.Object definition)
