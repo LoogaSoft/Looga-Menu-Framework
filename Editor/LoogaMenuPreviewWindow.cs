@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Editor;
 using UnityEditor;
@@ -7,16 +8,13 @@ namespace LoogaSoft.Menu.Editor
 {
     public sealed class LoogaMenuPreviewWindow : EditorWindow
     {
-        private const float PreviewButtonHeight = 26f;
-        private const float PreviewButtonLeftPadding = 10f;
-        private const float PreviewButtonRightPadding = 10f;
-        private const float TriangleCenterInset = 14f;
-        private const float TriangleSide = 8f;
+        private const float HeaderControlGap = 4f;
+        private const float SceneButtonSize = 20f;
+        private const float ConfigurationRowHeight = 22f;
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
-        private static GUIStyle _previewButtonStyle;
-        private static GUIStyle _disclosureButtonStyle;
+        private static GUIContent _selectSceneContent;
         private Vector2 _scrollPosition;
 
         [MenuItem("Tools/LoogaSoft/Menu/Preview")]
@@ -66,47 +64,213 @@ namespace LoogaSoft.Menu.Editor
 
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
             foreach (LoogaMenuScreenDefinition screen in _screens)
-                DrawScreen(screen, panels.Length > 0);
+                DrawScreen(screen, panels);
             EditorGUILayout.EndScrollView();
         }
 
-        private void DrawScreen(LoogaMenuScreenDefinition screen, bool canPreview)
+        private void DrawScreen(LoogaMenuScreenDefinition screen, LoogaMenuPanel[] scenePanels)
         {
             if (screen == null)
                 return;
 
             int layoutCount = CountLayouts(screen.Layouts);
-            if (layoutCount <= 1)
+            bool hasLayoutFoldout = layoutCount > 1;
+            bool expanded = hasLayoutFoldout
+                && _screenFoldouts.TryGetValue(screen, out bool current)
+                && current;
+
+            using (LoogaEditorFoldouts.BeginLargeFoldoutLayout(
+                       expanded,
+                       out Rect headerRect,
+                       out Rect clickRect))
             {
-                DrawDefinitionRow(screen, screen.DisplayName, canPreview,
-                    () => Preview(screen, screen.DefaultLayout));
-                return;
+                string countSuffix = hasLayoutFoldout ? $" ({layoutCount})" : string.Empty;
+                GUIContent label = new(
+                    screen.DisplayName + countSuffix,
+                    hasLayoutFoldout
+                        ? "Left-click to show layouts. Right-click to open and ping the screen definition."
+                        : "Left-click to preview. Right-click to open and ping the screen definition.");
+
+                bool canPreview = scenePanels.Length > 0;
+                bool canSelect = HasSceneObjects(screen, screen.DefaultLayout, scenePanels);
+                if (DrawScreenHeader(
+                        headerRect,
+                        clickRect,
+                        label,
+                        screen,
+                        hasLayoutFoldout,
+                        expanded,
+                        canPreview,
+                        canSelect,
+                        () => Preview(screen, screen.DefaultLayout),
+                        () => SelectSceneObjects(screen, screen.DefaultLayout, scenePanels)))
+                {
+                    expanded = !expanded;
+                }
+
+                if (hasLayoutFoldout)
+                    _screenFoldouts[screen] = expanded;
+
+                if (!expanded)
+                    return;
+
+                EditorGUILayout.Space(2f);
+                foreach (LoogaMenuScreenLayout layout in screen.Layouts)
+                {
+                    if (layout == null)
+                        continue;
+
+                    string suffix = layout == screen.DefaultLayout ? " (Default)" : string.Empty;
+                    DrawConfigurationRow(
+                        layout,
+                        layout.DisplayName + suffix,
+                        canPreview,
+                        HasSceneObjects(screen, layout, scenePanels),
+                        () => Preview(screen, layout),
+                        () => SelectSceneObjects(screen, layout, scenePanels));
+                }
+                EditorGUILayout.Space(2f);
+            }
+        }
+
+        private static bool DrawScreenHeader(
+            Rect headerRect,
+            Rect clickRect,
+            GUIContent label,
+            ScriptableObject definition,
+            bool showFoldout,
+            bool expanded,
+            bool canPreview,
+            bool canSelect,
+            Action preview,
+            Action selectSceneObjects)
+        {
+            headerRect = LoogaEditorStyle.PixelSnap(headerRect);
+            clickRect = LoogaEditorStyle.PixelSnap(clickRect);
+
+            Rect standardArrowRect = LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect);
+            Rect sceneButtonRect = new(
+                standardArrowRect.xMax - SceneButtonSize,
+                headerRect.center.y - SceneButtonSize * 0.5f,
+                SceneButtonSize,
+                SceneButtonSize);
+            sceneButtonRect = LoogaEditorStyle.PixelSnap(sceneButtonRect);
+
+            Rect arrowRect = standardArrowRect;
+            if (showFoldout)
+                arrowRect.x = sceneButtonRect.xMin - HeaderControlGap - arrowRect.width;
+
+            Rect contentRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(headerRect, false);
+            contentRect.xMax = (showFoldout ? arrowRect.xMin : sceneButtonRect.xMin) - HeaderControlGap;
+
+            Rect interactiveRect = clickRect;
+            interactiveRect.xMax = sceneButtonRect.xMin - HeaderControlGap;
+            Event current = Event.current;
+            if (interactiveRect.Contains(current.mousePosition))
+                LoogaEditorFoldouts.DrawHoverRect(interactiveRect);
+
+            GUI.Label(contentRect, label, EditorStyles.boldLabel);
+            if (showFoldout)
+                LoogaEditorStyle.DrawFoldoutTriangle(arrowRect, expanded);
+
+            DrawSceneSelectionButton(sceneButtonRect, canSelect, selectSceneObjects);
+
+            if (HandleContextClick(interactiveRect, definition))
+                return false;
+
+            if (current.type != EventType.MouseDown
+                || current.button != 0
+                || !interactiveRect.Contains(current.mousePosition))
+            {
+                return false;
             }
 
-            bool expanded = _screenFoldouts.TryGetValue(screen, out bool current) && current;
+            if (showFoldout)
+            {
+                current.Use();
+                return true;
+            }
+
+            if (canPreview)
+            {
+                preview?.Invoke();
+                current.Use();
+            }
+
+            return false;
+        }
+
+        private static void DrawConfigurationRow(
+            LoogaMenuScreenLayout layout,
+            string displayName,
+            bool canPreview,
+            bool canSelect,
+            Action preview,
+            Action selectSceneObjects)
+        {
+            Rect rowRect = EditorGUILayout.GetControlRect(false, ConfigurationRowHeight);
+            rowRect = LoogaEditorStyle.PixelSnap(rowRect);
+            Rect sceneButtonRect = new(
+                rowRect.xMax - SceneButtonSize,
+                rowRect.center.y - SceneButtonSize * 0.5f,
+                SceneButtonSize,
+                SceneButtonSize);
+            sceneButtonRect = LoogaEditorStyle.PixelSnap(sceneButtonRect);
+            Rect previewRect = rowRect;
+            previewRect.xMax = sceneButtonRect.xMin - HeaderControlGap;
+
             GUIContent content = new(
-                $"{screen.DisplayName} ({layoutCount})",
-                "Left-click to show layouts. Right-click to open and ping the screen definition.");
-            Rect row = EditorGUILayout.GetControlRect(false, PreviewButtonHeight);
-            if (HandleContextClick(row, screen))
-                return;
-
-            if (DrawPreviewButton(row, content, true, expanded))
-                expanded = !expanded;
-
-            _screenFoldouts[screen] = expanded;
-            if (!expanded)
-                return;
-
-            foreach (LoogaMenuScreenLayout layout in screen.Layouts)
+                string.IsNullOrWhiteSpace(displayName) ? layout.name : displayName,
+                "Left-click to preview. Right-click to open and ping the layout definition.");
+            using (new EditorGUI.DisabledScope(!canPreview))
             {
-                if (layout == null)
-                    continue;
-
-                string suffix = layout == screen.DefaultLayout ? " (Default)" : string.Empty;
-                DrawDefinitionRow(layout, layout.DisplayName + suffix, canPreview,
-                    () => Preview(screen, layout), 18f);
+                if (GUI.Button(previewRect, content, EditorStyles.miniButton))
+                    preview?.Invoke();
             }
+
+            DrawSceneSelectionButton(sceneButtonRect, canSelect, selectSceneObjects);
+            HandleContextClick(previewRect, layout);
+        }
+
+        private static void DrawSceneSelectionButton(Rect rect, bool canSelect, Action selectSceneObjects)
+        {
+            GUIContent content = GetSelectSceneContent();
+            content.tooltip = canSelect
+                ? "Select the corresponding panel object(s) in the hierarchy."
+                : "No corresponding panel objects are loaded in the open scene.";
+
+            using (new EditorGUI.DisabledScope(!canSelect))
+            {
+                if (GUI.Button(rect, content, EditorStyles.miniButton))
+                    selectSceneObjects?.Invoke();
+            }
+        }
+
+        private static GUIContent GetSelectSceneContent()
+        {
+            if (_selectSceneContent != null)
+                return _selectSceneContent;
+
+            string iconName = EditorGUIUtility.isProSkin
+                ? "d_scenevis_visible_hover"
+                : "scenevis_visible_hover";
+            Texture icon = EditorGUIUtility.IconContent(iconName).image;
+            icon ??= EditorGUIUtility.IconContent("ViewToolZoom").image;
+            _selectSceneContent = new GUIContent(icon);
+            return _selectSceneContent;
+        }
+
+        private static bool HandleContextClick(Rect rect, UnityEngine.Object definition)
+        {
+            Event current = Event.current;
+            if (current.type != EventType.ContextClick || !rect.Contains(current.mousePosition))
+                return false;
+
+            Selection.activeObject = definition;
+            EditorGUIUtility.PingObject(definition);
+            AssetDatabase.OpenAsset(definition);
+            current.Use();
+            return true;
         }
 
         private static int CountLayouts(LoogaMenuScreenLayout[] layouts)
@@ -138,155 +302,72 @@ namespace LoogaSoft.Menu.Editor
             _screens.Sort((left, right) => string.Compare(
                 left != null ? left.name : string.Empty,
                 right != null ? right.name : string.Empty,
-                System.StringComparison.OrdinalIgnoreCase));
+                StringComparison.OrdinalIgnoreCase));
         }
 
-        private static void DrawDefinitionRow<T>(
-            T definition,
-            string displayName,
-            bool canPreview,
-            System.Action preview,
-            float leftInset = 0f) where T : ScriptableObject
+        private static bool HasSceneObjects(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            LoogaMenuPanel[] scenePanels)
         {
-            if (definition == null)
+            return FindSceneObjects(screen, layout, scenePanels).Count > 0;
+        }
+
+        private static void SelectSceneObjects(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            LoogaMenuPanel[] scenePanels)
+        {
+            List<GameObject> sceneObjects = FindSceneObjects(screen, layout, scenePanels);
+            if (sceneObjects.Count == 0)
                 return;
 
-            GUIContent content = new(
-                string.IsNullOrWhiteSpace(displayName) ? definition.name : displayName,
-                "Left-click to preview. Right-click to open and ping the definition.");
-            Rect buttonRect = EditorGUILayout.GetControlRect(false, PreviewButtonHeight);
-            buttonRect.xMin += leftInset;
-            if (HandleContextClick(buttonRect, definition))
-                return;
+            UnityEngine.Object[] selection = new UnityEngine.Object[sceneObjects.Count];
+            for (int i = 0; i < sceneObjects.Count; i++)
+                selection[i] = sceneObjects[i];
 
-            using (new EditorGUI.DisabledScope(!canPreview))
+            Selection.objects = selection;
+            Selection.activeObject = sceneObjects[0];
+            EditorGUIUtility.PingObject(sceneObjects[0]);
+        }
+
+        private static List<GameObject> FindSceneObjects(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout,
+            LoogaMenuPanel[] scenePanels)
+        {
+            HashSet<LoogaMenuPanelDefinition> definitions = CollectPanelDefinitions(screen, layout);
+            List<GameObject> sceneObjects = new();
+            foreach (LoogaMenuPanel panel in scenePanels)
             {
-                if (DrawPreviewButton(buttonRect, content))
-                    preview?.Invoke();
-            }
-        }
-
-        private static bool HandleContextClick(Rect rect, Object definition)
-        {
-            Event current = Event.current;
-            if (current.type != EventType.MouseDown || current.button != 1 || !rect.Contains(current.mousePosition))
-                return false;
-
-            Selection.activeObject = definition;
-            EditorGUIUtility.PingObject(definition);
-            AssetDatabase.OpenAsset(definition);
-            current.Use();
-            return true;
-        }
-
-        private static bool DrawPreviewButton(
-            Rect rect,
-            GUIContent content,
-            bool showDisclosure = false,
-            bool expanded = false)
-        {
-            rect = LoogaEditorStyle.PixelSnap(rect);
-            GUI.Box(rect, GUIContent.none, LoogaEditorFoldouts.SmallFoldoutBoxStyle);
-            if (GUI.enabled && rect.Contains(Event.current.mousePosition))
-                LoogaEditorFoldouts.DrawHoverRect(rect);
-
-            bool clicked = GUI.Button(rect, content, GetPreviewButtonStyle(showDisclosure));
-            if (showDisclosure)
-                DrawDisclosureTriangle(rect, expanded);
-            return clicked;
-        }
-
-        private static GUIStyle GetPreviewButtonStyle(bool showDisclosure)
-        {
-            GUIStyle style = showDisclosure ? _disclosureButtonStyle : _previewButtonStyle;
-            if (style == null)
-            {
-                style = new GUIStyle(EditorStyles.label)
-                {
-                    alignment = TextAnchor.MiddleLeft,
-                    clipping = TextClipping.Clip,
-                    padding = new RectOffset(0, Mathf.RoundToInt(PreviewButtonRightPadding), 0, 0)
-                };
-                style.normal.textColor = LoogaEditorStyle.TextColor;
-                style.hover.textColor = LoogaEditorStyle.TextColor;
-                style.active.textColor = LoogaEditorStyle.TextColor;
-                style.focused.textColor = LoogaEditorStyle.TextColor;
-
-                if (showDisclosure)
-                    _disclosureButtonStyle = style;
-                else
-                    _previewButtonStyle = style;
+                if (panel != null && panel.Panel != null && definitions.Contains(panel.Panel))
+                    sceneObjects.Add(panel.gameObject);
             }
 
-            style.padding.left = showDisclosure
-                ? GetDisclosureTextPadding()
-                : Mathf.RoundToInt(PreviewButtonLeftPadding);
-            return style;
+            return sceneObjects;
         }
 
-        private static int GetDisclosureTextPadding()
+        private static HashSet<LoogaMenuPanelDefinition> CollectPanelDefinitions(
+            LoogaMenuScreenDefinition screen,
+            LoogaMenuScreenLayout layout)
         {
-            float centerInset = LoogaEditorStyle.Pixels(TriangleCenterInset);
-            float side = LoogaEditorStyle.Pixels(TriangleSide);
-            float altitude = side * Mathf.Sqrt(3f) * 0.5f;
-            return Mathf.CeilToInt(centerInset + altitude * 0.66f + LoogaEditorStyle.Pixels(3f));
-        }
-
-        private static void DrawDisclosureTriangle(Rect row, bool expanded)
-        {
-            if (Event.current.type != EventType.Repaint)
-                return;
-
-            float side = LoogaEditorStyle.Pixels(TriangleSide);
-            float altitude = side * Mathf.Sqrt(3f) * 0.5f;
-            Vector2 center = new(
-                LoogaEditorStyle.PixelSnapValue(row.xMin + LoogaEditorStyle.Pixels(TriangleCenterInset)),
-                LoogaEditorStyle.PixelSnapValue(row.center.y));
-            Vector3[] points = expanded
-                ? new[]
-                {
-                    new Vector3(center.x - side * 0.5f, center.y - altitude / 3f),
-                    new Vector3(center.x + side * 0.5f, center.y - altitude / 3f),
-                    new Vector3(center.x, center.y + altitude * 2f / 3f)
-                }
-                : new[]
-                {
-                    new Vector3(center.x - altitude / 3f, center.y - side * 0.5f),
-                    new Vector3(center.x - altitude / 3f, center.y + side * 0.5f),
-                    new Vector3(center.x + altitude * 2f / 3f, center.y)
-                };
-
-            Color previous = Handles.color;
-            Handles.color = LoogaEditorStyle.ArrowColor;
-            Handles.BeginGUI();
-            Handles.DrawAAConvexPolygon(points);
-            Handles.EndGUI();
-            Handles.color = previous;
-        }
-
-        private static void Preview(LoogaMenuScreenDefinition screen, LoogaMenuScreenLayout layout)
-        {
-            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
-            LoogaMenuRoot root = Object.FindFirstObjectByType<LoogaMenuRoot>(FindObjectsInactive.Include);
-            foreach (LoogaMenuPanel panel in panels)
-            {
-                panel.Hide();
-                EditorUtility.SetDirty(panel);
-            }
+            HashSet<LoogaMenuPanelDefinition> definitions = new();
+            if (screen == null)
+                return definitions;
 
             layout = screen.ResolveLayout(layout);
             foreach (LoogaMenuScreenPanelEntry entry in screen.GetPanels(layout))
             {
-                if (entry != null)
-                    ShowPanel(entry.Panel);
+                if (entry?.Panel != null)
+                    definitions.Add(entry.Panel);
             }
 
-
+            LoogaMenuRoot root = LoogaMenuEditorUtility.FindMenuRoot();
             LoogaMenuStructureProfile structure = root != null
                 ? root.Structure
                 : LoogaMenuStructureEditorUtility.FindStructure();
             if (structure == null)
-                return;
+                return definitions;
 
             List<LoogaMenuPanelDefinition> regionPanels = new();
             foreach (LoogaMenuRegionDefinition region in structure.Regions)
@@ -298,8 +379,27 @@ namespace LoogaSoft.Menu.Editor
                 regionPanels.Clear();
                 content.CollectPanels(regionPanels);
                 foreach (LoogaMenuPanelDefinition panel in regionPanels)
-                    ShowPanel(panel);
+                {
+                    if (panel != null)
+                        definitions.Add(panel);
+                }
             }
+
+            return definitions;
+        }
+
+        private static void Preview(LoogaMenuScreenDefinition screen, LoogaMenuScreenLayout layout)
+        {
+            LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
+            foreach (LoogaMenuPanel panel in panels)
+            {
+                panel.Hide();
+                EditorUtility.SetDirty(panel);
+            }
+
+            HashSet<LoogaMenuPanelDefinition> definitions = CollectPanelDefinitions(screen, layout);
+            foreach (LoogaMenuPanelDefinition definition in definitions)
+                ShowPanel(definition);
         }
 
         private static void ResetPreview(LoogaMenuPanel[] panels)
