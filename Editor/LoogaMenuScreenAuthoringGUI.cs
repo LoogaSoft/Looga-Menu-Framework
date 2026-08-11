@@ -14,6 +14,7 @@ namespace LoogaSoft.Menu.Editor
         private const float ModeFieldWidth = 92f;
         private const float SummaryMaximumWidth = 150f;
         private const float ElementPadding = 2f;
+        private const float ReorderHandleClearance = 14f;
 
         private static readonly string[] RegionModes = { "Inherit", "Override", "Hide" };
         private static readonly Dictionary<int, ContentEditorState> ContentStates = new();
@@ -367,6 +368,7 @@ namespace LoogaSoft.Menu.Editor
             float line = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
             Rect row = new(rect.x, rect.y + ElementPadding, rect.width, line);
+            row.xMin += ReorderHandleClearance;
             string title = GetEntryName(entry, index);
             entry.isExpanded = EditorGUI.Foldout(
                 row,
