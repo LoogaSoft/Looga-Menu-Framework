@@ -26,6 +26,7 @@ namespace LoogaSoft.Menu
         private ILoogaBlackboardReader _blackboardReader;
         private ILoogaBlackboardWriter _blackboardWriter;
         private LoogaMenuManager _menuManager;
+        private bool _hadOpenScreens;
 
         /// <summary>Gets the active menu root.</summary>
         public static LoogaMenuRoot Active { get; private set; }
@@ -227,6 +228,9 @@ namespace LoogaSoft.Menu
 
         private void OnMenuStateChanged(LoogaMenuState state)
         {
+            bool hadOpenScreens = _hadOpenScreens;
+            _hadOpenScreens = state.HasOpenScreens;
+
             if (!_controlCursor)
                 return;
 
@@ -237,7 +241,7 @@ namespace LoogaSoft.Menu
                 return;
             }
 
-            if (!state.HasOpenScreens)
+            if (hadOpenScreens && !state.HasOpenScreens)
                 ApplyClosedCursorState();
         }
 
