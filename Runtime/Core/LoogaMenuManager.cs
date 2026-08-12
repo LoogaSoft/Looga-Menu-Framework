@@ -382,10 +382,12 @@ namespace LoogaSoft.Menu
                 if (region == null)
                     continue;
 
-                LoogaMenuRegionContent content = region.DefaultContent;
+                LoogaMenuScreenDefinition screen = TopScreen;
+                LoogaMenuRegionContent content = screen != null
+                    ? region.DefaultContent
+                    : null;
                 ApplyRegionOverrides(_activeContext?.RegionOverrides, region, ref content);
 
-                LoogaMenuScreenDefinition screen = TopScreen;
                 if (screen != null)
                 {
                     ApplyRegionOverrides(screen.RegionOverrides, region, ref content);
