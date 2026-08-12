@@ -204,7 +204,7 @@ namespace LoogaSoft.Menu
                 return false;
 
             if (mode == LoogaMenuOpenMode.Replace)
-                CloseAll(false);
+                CloseAll(false, false);
 
             _openScreens.Add(screen);
             _activeLayouts[screen] = layout;
@@ -284,10 +284,16 @@ namespace LoogaSoft.Menu
 
         private void CloseAll(bool notify)
         {
+            CloseAll(notify, true);
+        }
+
+        private void CloseAll(bool notify, bool rebuild)
+        {
             _openScreens.Clear();
             _activeLayouts.Clear();
             _openModes.Clear();
-            RebuildPresentation();
+            if (rebuild)
+                RebuildPresentation();
             if (notify)
                 NotifyStateChanged();
         }
