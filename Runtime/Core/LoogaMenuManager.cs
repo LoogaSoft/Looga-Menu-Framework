@@ -203,6 +203,7 @@ namespace LoogaSoft.Menu
             if (!CanOpen(screen, layout, requester))
                 return false;
 
+            HashSet<LoogaMenuPanel> previouslyVisiblePanels = new(_visiblePanels);
             if (mode == LoogaMenuOpenMode.Replace)
                 CloseAll(false, false);
 
@@ -212,10 +213,31 @@ namespace LoogaSoft.Menu
             RebuildPresentation();
 
             LoogaMenuPanel[] openedPanels = ResolvePanels(screen, layout, includeSharedPresentation: true);
-            _transitionHandler?.PlayOpen(screen, openedPanels);
+            _transitionHandler?.PlayOpen(screen, ExcludePreviouslyVisible(openedPanels, previouslyVisiblePanels));
             _audioHandler?.PlayOpen(screen, openedPanels);
             NotifyStateChanged();
             return true;
+        }
+
+        private static LoogaMenuPanel[] ExcludePreviouslyVisible(
+            LoogaMenuPanel[] panels,
+            HashSet<LoogaMenuPanel> previouslyVisiblePanels)
+        {
+            if (panels == null || panels.Length == 0 || previouslyVisiblePanels == null ||
+                previouslyVisiblePanels.Count == 0)
+            {
+                return panels;
+            }
+
+            List<LoogaMenuPanel> newlyVisiblePanels = new(panels.Length);
+            for (int i = 0; i < panels.Length; i++)
+            {
+                LoogaMenuPanel panel = panels[i];
+                if (panel != null && !previouslyVisiblePanels.Contains(panel))
+                    newlyVisiblePanels.Add(panel);
+            }
+
+            return newlyVisiblePanels.ToArray();
         }
 
         /// <summary>Changes a screen composition without adding a history entry.</summary>
