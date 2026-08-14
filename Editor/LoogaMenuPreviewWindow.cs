@@ -13,10 +13,13 @@ namespace LoogaSoft.Menu.Editor
         private const float HeaderArrowTextGapPixels = 4f;
 
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
+        private readonly List<LoogaMenuContextDefinition> _contexts = new();
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
         private static GUIStyle _configurationButtonStyle;
         private Vector2 _scrollPosition;
         private LoogaMenuContextDefinition _previewContext;
+        private LoogaMenuScreenDefinition _previewedScreen;
+        private LoogaMenuScreenLayout _previewedLayout;
         private bool _includeSharedUi = true;
 
         [MenuItem("LoogaSoft/Menu Framework/Menu Preview")]
@@ -51,6 +54,7 @@ namespace LoogaSoft.Menu.Editor
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
+                EditorGUI.BeginChangeCheck();
                 _includeSharedUi = GUILayout.Toggle(
                     _includeSharedUi,
                     new GUIContent(
@@ -58,14 +62,12 @@ namespace LoogaSoft.Menu.Editor
                         "Include context, navigation, header, background, and action regions."),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(78f));
+                bool sharedUiChanged = EditorGUI.EndChangeCheck();
                 using (new EditorGUI.DisabledScope(!_includeSharedUi))
-                {
-                    _previewContext = (LoogaMenuContextDefinition)EditorGUILayout.ObjectField(
-                        _previewContext,
-                        typeof(LoogaMenuContextDefinition),
-                        false,
-                        GUILayout.Width(150f));
-                }
+                    DrawContextSelector();
+
+                if (sharedUiChanged)
+                    ReapplyCurrentPreview();
 
                 GUILayout.FlexibleSpace();
                 using (new EditorGUI.DisabledScope(panels.Length == 0))
@@ -331,6 +333,72 @@ namespace LoogaSoft.Menu.Editor
                 left != null ? left.name : string.Empty,
                 right != null ? right.name : string.Empty,
                 StringComparison.OrdinalIgnoreCase));
+
+            _contexts.Clear();
+            foreach (string guid in AssetDatabase.FindAssets($"t:{nameof(LoogaMenuContextDefinition)}"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                LoogaMenuContextDefinition context =
+                    AssetDatabase.LoadAssetAtPath<LoogaMenuContextDefinition>(path);
+                if (context != null)
+                    _contexts.Add(context);
+            }
+
+            _contexts.Sort((left, right) => string.Compare(
+                left != null ? left.name : string.Empty,
+                right != null ? right.name : string.Empty,
+                StringComparison.OrdinalIgnoreCase));
+
+            if (_previewContext == null || !_contexts.Contains(_previewContext))
+            {
+                LoogaMenuContextDefinition defaultContext =
+                    LoogaMenuEditorUtility.FindMenuRoot()?.DefaultContext;
+                _previewContext = defaultContext != null && _contexts.Contains(defaultContext)
+                    ? defaultContext
+                    : _contexts.Count > 0 ? _contexts[0] : null;
+            }
+        }
+
+        private void DrawContextSelector()
+        {
+            const float arrowWidth = 22f;
+            const float contextWidth = 150f;
+            bool canCycle = _contexts.Count > 1;
+
+            using (new EditorGUI.DisabledScope(!canCycle))
+            {
+                if (GUILayout.Button("\u25c0", EditorStyles.toolbarButton, GUILayout.Width(arrowWidth)))
+                    SelectRelativeContext(-1);
+            }
+
+            string contextName = _previewContext != null ? _previewContext.name : "No Context";
+            GUILayout.Label(
+                new GUIContent(contextName, "Context included in the shared UI preview."),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(contextWidth));
+
+            using (new EditorGUI.DisabledScope(!canCycle))
+            {
+                if (GUILayout.Button("\u25b6", EditorStyles.toolbarButton, GUILayout.Width(arrowWidth)))
+                    SelectRelativeContext(1);
+            }
+        }
+
+        private void SelectRelativeContext(int offset)
+        {
+            if (_contexts.Count == 0)
+                return;
+
+            int currentIndex = Mathf.Max(0, _contexts.IndexOf(_previewContext));
+            int nextIndex = (currentIndex + offset + _contexts.Count) % _contexts.Count;
+            _previewContext = _contexts[nextIndex];
+            ReapplyCurrentPreview();
+        }
+
+        private void ReapplyCurrentPreview()
+        {
+            if (_previewedScreen != null)
+                Preview(_previewedScreen, _previewedLayout);
         }
 
         private bool HasSceneObjects(
@@ -436,6 +504,8 @@ namespace LoogaSoft.Menu.Editor
 
         private void Preview(LoogaMenuScreenDefinition screen, LoogaMenuScreenLayout layout)
         {
+            _previewedScreen = screen;
+            _previewedLayout = layout;
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             ResetPreview(panels);
 
