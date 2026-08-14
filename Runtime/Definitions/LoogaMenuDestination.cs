@@ -16,7 +16,8 @@ namespace LoogaSoft.Menu
         public LoogaMenuOpenMode OpenMode => _openMode;
         public bool IsAssigned => _screen != null;
 
-        internal static LoogaMenuDestination Create(
+        /// <summary>Creates a typed menu destination for generated presentation.</summary>
+        public static LoogaMenuDestination Create(
             LoogaMenuScreenDefinition screen,
             LoogaMenuScreenLayout layout,
             LoogaMenuOpenMode openMode)

@@ -24,7 +24,8 @@ namespace LoogaSoft.Menu
         public LoogaMenuDestination Destination => _destination;
         public LoogaMenuRuleSet Requirements => _requirements;
 
-        internal static LoogaMenuNavigationEntry Create(
+        /// <summary>Creates one navigation entry for runtime or editor-generated presentation.</summary>
+        public static LoogaMenuNavigationEntry Create(
             string displayName,
             LoogaMenuDestination destination,
             LoogaMenuRuleSet requirements = null)

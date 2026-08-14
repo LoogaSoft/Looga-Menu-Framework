@@ -2,6 +2,19 @@ using UnityEngine;
 
 namespace LoogaSoft.Menu
 {
+    /// <summary>Lets an authored region presenter render transient editor-preview content.</summary>
+    public interface ILoogaMenuPreviewPresenter
+    {
+        /// <summary>Gets the shared slot presented by this object.</summary>
+        LoogaMenuRegionDefinition Region { get; }
+
+        /// <summary>Renders content without changing authored scene data.</summary>
+        void ApplyMenuPreview(LoogaMenuRegionContent content);
+
+        /// <summary>Removes transient preview content.</summary>
+        void ClearMenuPreview();
+    }
+
     /// <summary>
     /// Activates an authored region presenter when the menu resolves content for its shared slot.
     /// Keep this component on an active parent so the presenter itself can remain inactive at rest.
@@ -17,6 +30,12 @@ namespace LoogaSoft.Menu
         [SerializeField] private GameObject _target;
 
         private LoogaMenuManager _manager;
+
+        /// <summary>Gets the shared slot controlled by this activator.</summary>
+        public LoogaMenuRegionDefinition Region => _region;
+
+        /// <summary>Gets the presenter root controlled by this activator.</summary>
+        public GameObject Target => _target;
 
         private void OnEnable()
         {

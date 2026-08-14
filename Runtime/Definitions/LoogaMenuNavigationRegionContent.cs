@@ -33,6 +33,16 @@ namespace LoogaSoft.Menu
             return content;
         }
 
+        /// <summary>Creates transient navigation content for editor presentation.</summary>
+        public static LoogaMenuNavigationRegionContent CreatePreview(
+            IReadOnlyList<LoogaMenuNavigationEntry> entries,
+            int defaultEntryIndex)
+        {
+            LoogaMenuNavigationRegionContent content = CreateRuntime(entries, defaultEntryIndex);
+            content.hideFlags = HideFlags.HideAndDontSave;
+            return content;
+        }
+
         public override void CollectPanels(List<LoogaMenuPanelDefinition> panels)
         {
         }
