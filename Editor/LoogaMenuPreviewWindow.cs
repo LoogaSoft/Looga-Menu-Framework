@@ -15,7 +15,9 @@ namespace LoogaSoft.Menu.Editor
         private readonly List<LoogaMenuScreenDefinition> _screens = new();
         private readonly List<LoogaMenuContextDefinition> _contexts = new();
         private readonly Dictionary<LoogaMenuScreenDefinition, bool> _screenFoldouts = new();
+        private static readonly string[] NoContextOption = { "No Context" };
         private static GUIStyle _configurationButtonStyle;
+        private string[] _contextNames = NoContextOption;
         private Vector2 _scrollPosition;
         private LoogaMenuContextDefinition _previewContext;
         private LoogaMenuScreenDefinition _previewedScreen;
@@ -53,7 +55,7 @@ namespace LoogaSoft.Menu.Editor
                 using (new EditorGUI.DisabledScope(panels.Length == 0))
                 {
                     if (GUILayout.Button("Reset", EditorStyles.toolbarButton, GUILayout.Width(64f)))
-                        ResetPreview(panels);
+                        ClearPreview(panels);
                 }
 
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(72f)))
@@ -61,6 +63,7 @@ namespace LoogaSoft.Menu.Editor
             }
 
             bool sharedUiChanged;
+            bool contextChanged;
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 EditorGUI.BeginChangeCheck();
@@ -73,11 +76,10 @@ namespace LoogaSoft.Menu.Editor
                     GUILayout.Width(78f));
                 sharedUiChanged = EditorGUI.EndChangeCheck();
                 using (new EditorGUI.DisabledScope(!_includeSharedUi))
-                    DrawContextSelector();
-                GUILayout.FlexibleSpace();
+                    contextChanged = DrawContextSelector();
             }
 
-            if (sharedUiChanged)
+            if (sharedUiChanged || contextChanged)
                 ReapplyCurrentPreview();
 
             if (panels.Length == 0)
@@ -349,6 +351,21 @@ namespace LoogaSoft.Menu.Editor
                 right != null ? right.name : string.Empty,
                 StringComparison.OrdinalIgnoreCase));
 
+            if (_contexts.Count == 0)
+            {
+                _contextNames = NoContextOption;
+            }
+            else
+            {
+                _contextNames = new string[_contexts.Count];
+                for (int index = 0; index < _contexts.Count; index++)
+                {
+                    _contextNames[index] = _contexts[index] != null
+                        ? _contexts[index].name
+                        : "Missing Context";
+                }
+            }
+
             if (_previewContext == null || !_contexts.Contains(_previewContext))
             {
                 LoogaMenuContextDefinition defaultContext =
@@ -359,46 +376,44 @@ namespace LoogaSoft.Menu.Editor
             }
         }
 
-        private void DrawContextSelector()
-        {
-            const float arrowWidth = 22f;
-            const float contextWidth = 150f;
-            bool canCycle = _contexts.Count > 1;
-
-            using (new EditorGUI.DisabledScope(!canCycle))
-            {
-                if (GUILayout.Button("\u25c0", EditorStyles.toolbarButton, GUILayout.Width(arrowWidth)))
-                    SelectRelativeContext(-1);
-            }
-
-            string contextName = _previewContext != null ? _previewContext.name : "No Context";
-            GUILayout.Label(
-                new GUIContent(contextName, "Context included in the shared UI preview."),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(contextWidth));
-
-            using (new EditorGUI.DisabledScope(!canCycle))
-            {
-                if (GUILayout.Button("\u25b6", EditorStyles.toolbarButton, GUILayout.Width(arrowWidth)))
-                    SelectRelativeContext(1);
-            }
-        }
-
-        private void SelectRelativeContext(int offset)
+        private bool DrawContextSelector()
         {
             if (_contexts.Count == 0)
-                return;
+            {
+                EditorGUILayout.Popup(
+                    0,
+                    NoContextOption,
+                    EditorStyles.toolbarPopup,
+                    GUILayout.MinWidth(80f),
+                    GUILayout.ExpandWidth(true));
+                return false;
+            }
 
             int currentIndex = Mathf.Max(0, _contexts.IndexOf(_previewContext));
-            int nextIndex = (currentIndex + offset + _contexts.Count) % _contexts.Count;
-            _previewContext = _contexts[nextIndex];
-            ReapplyCurrentPreview();
+            int selectedIndex = EditorGUILayout.Popup(
+                currentIndex,
+                _contextNames,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(80f),
+                GUILayout.ExpandWidth(true));
+            if (selectedIndex == currentIndex)
+                return false;
+
+            _previewContext = _contexts[selectedIndex];
+            return true;
         }
 
         private void ReapplyCurrentPreview()
         {
             if (_previewedScreen != null)
                 Preview(_previewedScreen, _previewedLayout);
+        }
+
+        private void ClearPreview(LoogaMenuPanel[] panels)
+        {
+            _previewedScreen = null;
+            _previewedLayout = null;
+            ResetPreview(panels);
         }
 
         private bool HasSceneObjects(
