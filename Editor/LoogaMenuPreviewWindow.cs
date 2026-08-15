@@ -54,21 +54,6 @@ namespace LoogaSoft.Menu.Editor
             LoogaMenuPanel[] panels = LoogaMenuEditorUtility.FindScenePanels();
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                EditorGUI.BeginChangeCheck();
-                _includeSharedUi = GUILayout.Toggle(
-                    _includeSharedUi,
-                    new GUIContent(
-                        "Shared UI",
-                        "Include context, navigation, header, background, and action regions."),
-                    EditorStyles.toolbarButton,
-                    GUILayout.Width(78f));
-                bool sharedUiChanged = EditorGUI.EndChangeCheck();
-                using (new EditorGUI.DisabledScope(!_includeSharedUi))
-                    DrawContextSelector();
-
-                if (sharedUiChanged)
-                    ReapplyCurrentPreview();
-
                 GUILayout.FlexibleSpace();
                 using (new EditorGUI.DisabledScope(panels.Length == 0))
                 {
@@ -79,6 +64,26 @@ namespace LoogaSoft.Menu.Editor
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(72f)))
                     RefreshDefinitions();
             }
+
+            bool sharedUiChanged;
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            {
+                EditorGUI.BeginChangeCheck();
+                _includeSharedUi = GUILayout.Toggle(
+                    _includeSharedUi,
+                    new GUIContent(
+                        "Shared UI",
+                        "Include context, navigation, header, background, and action regions."),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(78f));
+                sharedUiChanged = EditorGUI.EndChangeCheck();
+                using (new EditorGUI.DisabledScope(!_includeSharedUi))
+                    DrawContextSelector();
+                GUILayout.FlexibleSpace();
+            }
+
+            if (sharedUiChanged)
+                ReapplyCurrentPreview();
 
             if (panels.Length == 0)
             {
