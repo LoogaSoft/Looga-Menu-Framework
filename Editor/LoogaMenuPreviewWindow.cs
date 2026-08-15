@@ -36,11 +36,6 @@ namespace LoogaSoft.Menu.Editor
             wantsMouseMove = true;
         }
 
-        private void OnDestroy()
-        {
-            ResetPreview(LoogaMenuEditorUtility.FindScenePanels());
-        }
-
         private void OnFocus()
         {
             RefreshDefinitions();
