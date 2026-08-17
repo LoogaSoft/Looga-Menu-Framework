@@ -253,10 +253,51 @@ namespace LoogaSoft.Menu
             if (!CanOpen(screen, layout, requester))
                 return false;
 
+            HashSet<LoogaMenuPanel> previouslyVisiblePanels = new(_visiblePanels);
             _activeLayouts[screen] = layout;
             RebuildPresentation();
+
+            LoogaMenuPanel[] openingPanels = Except(_visiblePanels, previouslyVisiblePanels);
+            LoogaMenuPanel[] closingPanels = Except(previouslyVisiblePanels, _visiblePanels);
+            if (_transitionHandler != null && closingPanels.Length > 0)
+            {
+                foreach (LoogaMenuPanel panel in closingPanels)
+                {
+                    panel.Show();
+                }
+
+                _transitionHandler.PlayClose(screen, closingPanels, () =>
+                {
+                    foreach (LoogaMenuPanel panel in closingPanels)
+                    {
+                        if (panel != null)
+                        {
+                            panel.Hide();
+                        }
+                    }
+                });
+            }
+
+            _transitionHandler?.PlayOpen(screen, openingPanels);
+
             NotifyStateChanged();
             return true;
+        }
+
+        private static LoogaMenuPanel[] Except(
+            IEnumerable<LoogaMenuPanel> candidates,
+            ICollection<LoogaMenuPanel> exclusions)
+        {
+            List<LoogaMenuPanel> result = new();
+            foreach (LoogaMenuPanel panel in candidates)
+            {
+                if (panel != null && (exclusions == null || !exclusions.Contains(panel)))
+                {
+                    result.Add(panel);
+                }
+            }
+
+            return result.ToArray();
         }
 
         public bool Back()

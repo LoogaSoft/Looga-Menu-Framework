@@ -39,20 +39,15 @@ namespace LoogaSoft.Menu
 
         private void OnEnable()
         {
+            LoogaMenuRoot.ActiveChanged += OnActiveRootChanged;
             TryBindManager();
             Refresh();
         }
 
         private void OnDisable()
         {
+            LoogaMenuRoot.ActiveChanged -= OnActiveRootChanged;
             UnbindManager();
-        }
-
-        private void Update()
-        {
-            LoogaMenuManager activeManager = LoogaMenuRoot.Active?.MenuManager;
-            if (activeManager != _manager)
-                TryBindManager();
         }
 
         private void OnValidate()
@@ -74,7 +69,9 @@ namespace LoogaSoft.Menu
             UnbindManager();
             _manager = manager;
             if (_manager != null)
+            {
                 _manager.StateChanged += OnMenuStateChanged;
+            }
 
             Refresh();
         }
@@ -91,6 +88,12 @@ namespace LoogaSoft.Menu
         {
             _ = state;
             Refresh();
+        }
+
+        private void OnActiveRootChanged(LoogaMenuRoot root)
+        {
+            _ = root;
+            TryBindManager();
         }
 
         private void Refresh()

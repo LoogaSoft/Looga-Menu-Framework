@@ -31,6 +31,9 @@ namespace LoogaSoft.Menu
         /// <summary>Gets the active menu root.</summary>
         public static LoogaMenuRoot Active { get; private set; }
 
+        /// <summary>Occurs when the active menu root changes.</summary>
+        public static event System.Action<LoogaMenuRoot> ActiveChanged;
+
         /// <summary>Gets the menu manager owned by this root.</summary>
         public LoogaMenuManager MenuManager => _menuManager;
 
@@ -70,29 +73,39 @@ namespace LoogaSoft.Menu
         private static void ResetStatics()
         {
             Active = null;
+            ActiveChanged = null;
         }
 
         private void Awake()
         {
-            Active = this;
             ResolveBlackboard();
             _menuManager = new LoogaMenuManager(
                 _blackboardReader,
                 _blackboardWriter,
                 _structure);
             _menuManager.StateChanged += OnMenuStateChanged;
+            SetActive(this);
 
             RegisterStateProviders();
             ResolveHandlers();
             RegisterPanels();
             if (_defaultContext != null)
+            {
                 _menuManager.SetContext(_defaultContext);
+            }
             else
+            {
                 _menuManager.RefreshPresentation();
+            }
         }
 
         private void OnDestroy()
         {
+            if (Active == this)
+            {
+                SetActive(null);
+            }
+
             if (_menuManager != null)
             {
                 _menuManager.StateChanged -= OnMenuStateChanged;
@@ -101,9 +114,6 @@ namespace LoogaSoft.Menu
 
             UnregisterStateProviders();
             ReleaseOwnedBlackboard();
-
-            if (Active == this)
-                Active = null;
         }
 
         /// <summary>Opens a typed menu destination.</summary>
@@ -164,13 +174,17 @@ namespace LoogaSoft.Menu
         private void RegisterPanels()
         {
             foreach (LoogaMenuPanel panel in _scenePanels)
+            {
                 RegisterPanel(panel);
+            }
 
             if (!_registerChildrenOnAwake)
                 return;
 
             foreach (LoogaMenuPanel panel in GetComponentsInChildren<LoogaMenuPanel>(true))
+            {
                 RegisterPanel(panel);
+            }
         }
 
         private void RegisterStateProviders()
@@ -178,7 +192,9 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (component is ILoogaStateProvider provider)
+                {
                     provider.RegisterStates(_blackboardWriter);
+                }
             }
         }
 
@@ -187,7 +203,9 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (component is ILoogaStateProvider provider)
+                {
                     provider.UnregisterStates(_blackboardWriter);
+                }
             }
         }
 
@@ -219,11 +237,24 @@ namespace LoogaSoft.Menu
             foreach (MonoBehaviour component in GetComponents<MonoBehaviour>())
             {
                 if (component is ILoogaMenuTransitionHandler transitionHandler)
+                {
                     _menuManager.SetTransitionHandler(transitionHandler);
+                }
 
                 if (component is ILoogaMenuAudioHandler audioHandler)
+                {
                     _menuManager.SetAudioHandler(audioHandler);
+                }
             }
+        }
+
+        private static void SetActive(LoogaMenuRoot root)
+        {
+            if (Active == root)
+                return;
+
+            Active = root;
+            ActiveChanged?.Invoke(root);
         }
 
         private void OnMenuStateChanged(LoogaMenuState state)

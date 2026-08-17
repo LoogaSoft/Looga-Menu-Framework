@@ -21,18 +21,14 @@ namespace LoogaSoft.Menu
 
         private void OnEnable()
         {
+            LoogaMenuRoot.ActiveChanged += OnActiveRootChanged;
             BindManager();
         }
 
         private void OnDisable()
         {
+            LoogaMenuRoot.ActiveChanged -= OnActiveRootChanged;
             UnbindManager();
-        }
-
-        private void Update()
-        {
-            if (_manager == null)
-                BindManager();
         }
 
         public T GetContent<T>() where T : LoogaMenuRegionContent
@@ -45,12 +41,16 @@ namespace LoogaSoft.Menu
             LoogaMenuManager manager = LoogaMenuRoot.Active != null
                 ? LoogaMenuRoot.Active.MenuManager
                 : null;
-            if (manager == null || manager == _manager)
+            if (manager == _manager)
                 return;
 
             UnbindManager();
             _manager = manager;
-            _manager.StateChanged += OnMenuStateChanged;
+            if (_manager != null)
+            {
+                _manager.StateChanged += OnMenuStateChanged;
+            }
+
             Refresh();
         }
 
@@ -65,7 +65,14 @@ namespace LoogaSoft.Menu
 
         private void OnMenuStateChanged(LoogaMenuState state)
         {
+            _ = state;
             Refresh();
+        }
+
+        private void OnActiveRootChanged(LoogaMenuRoot root)
+        {
+            _ = root;
+            BindManager();
         }
 
         private void Refresh()

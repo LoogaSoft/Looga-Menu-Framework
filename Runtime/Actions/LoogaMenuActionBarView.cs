@@ -40,21 +40,19 @@ namespace LoogaSoft.Menu
         {
             ResolveReferences();
             HideTemplate();
-            TrySubscribe();
+            if (_useActiveMenuRoot)
+            {
+                LoogaMenuRoot.ActiveChanged += OnActiveRootChanged;
+            }
+
+            RebindManager();
             Refresh();
         }
 
         private void OnDisable()
         {
+            LoogaMenuRoot.ActiveChanged -= OnActiveRootChanged;
             Unsubscribe();
-        }
-
-        private void Update()
-        {
-            if (_menuManager == null)
-            {
-                TrySubscribe();
-            }
         }
 
         public void Refresh()
@@ -69,17 +67,19 @@ namespace LoogaSoft.Menu
             Render();
         }
 
-        private void TrySubscribe()
+        private void RebindManager()
         {
             LoogaMenuRoot root = ResolveRoot();
             LoogaMenuManager manager = root != null ? root.MenuManager : null;
-            if (manager == null || manager == _menuManager)
+            if (manager == _menuManager)
                 return;
 
             Unsubscribe();
             _menuManager = manager;
-            _menuManager.StateChanged += OnMenuStateChanged;
-            Refresh();
+            if (_menuManager != null)
+            {
+                _menuManager.StateChanged += OnMenuStateChanged;
+            }
         }
 
         private void Unsubscribe()
@@ -120,6 +120,14 @@ namespace LoogaSoft.Menu
 
         private void OnMenuStateChanged(LoogaMenuState state)
         {
+            _ = state;
+            Refresh();
+        }
+
+        private void OnActiveRootChanged(LoogaMenuRoot root)
+        {
+            _ = root;
+            RebindManager();
             Refresh();
         }
 
